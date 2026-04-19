@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Plus } from "lucide-react";
+import { DatePicker } from "@/app/components/DatePicker";
+import { TagPicker } from "./TagPicker";
 import type { TaskData } from "../board/TaskCard";
 
 export function TaskDetail({
@@ -28,6 +30,10 @@ export function TaskDetail({
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || "");
   const [priority, setPriority] = useState(task.priority);
+  const [dueDate, setDueDate] = useState(
+    task.dueDate ? task.dueDate.slice(0, 10) : ""
+  );
+  const [tags, setTags] = useState(task.tags);
   const [subtasks, setSubtasks] = useState(task.subtasks);
   const [newSubtask, setNewSubtask] = useState("");
   const [saving, setSaving] = useState(false);
@@ -37,7 +43,13 @@ export function TaskDetail({
     await fetch(`/api/tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, description, priority }),
+      body: JSON.stringify({
+        title,
+        description,
+        priority,
+        dueDate: dueDate || null,
+        tagIds: tags.map((t) => t.id),
+      }),
     });
     setSaving(false);
     onUpdate();
@@ -87,7 +99,7 @@ export function TaskDetail({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Detalle de tarea</DialogTitle>
+          <DialogTitle>Task Detail</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
@@ -100,12 +112,12 @@ export function TaskDetail({
           <Textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Descripción..."
+            placeholder="Description..."
             rows={4}
           />
 
           <div>
-            <p className="mb-2 text-sm font-medium">Prioridad</p>
+            <p className="mb-2 text-sm font-medium">Priority</p>
             <div className="flex gap-2">
               {(["low", "medium", "high"] as const).map((p) => (
                 <Button
@@ -115,30 +127,24 @@ export function TaskDetail({
                   size="sm"
                   onClick={() => setPriority(p)}
                 >
-                  {p === "low" ? "Baja" : p === "medium" ? "Media" : "Alta"}
+                  {p === "low" ? "Low" : p === "medium" ? "Medium" : "High"}
                 </Button>
               ))}
             </div>
           </div>
 
-          {task.tags.length > 0 && (
-            <div>
-              <p className="mb-2 text-sm font-medium">Tags</p>
-              <div className="flex flex-wrap gap-1">
-                {task.tags.map((tag) => (
-                  <Badge
-                    key={tag.id}
-                    style={{ backgroundColor: tag.color, color: "#fff" }}
-                  >
-                    {tag.name}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
+          <div>
+            <p className="mb-2 text-sm font-medium">Due date</p>
+            <DatePicker value={dueDate} onChange={setDueDate} />
+          </div>
 
           <div>
-            <p className="mb-2 text-sm font-medium">Subtareas</p>
+            <p className="mb-2 text-sm font-medium">Tags</p>
+            <TagPicker selectedTags={tags} onChange={setTags} />
+          </div>
+
+          <div>
+            <p className="mb-2 text-sm font-medium">Subtasks</p>
             <div className="flex flex-col gap-1">
               {subtasks.map((subtask) => (
                 <div
@@ -179,7 +185,7 @@ export function TaskDetail({
               <Input
                 value={newSubtask}
                 onChange={(e) => setNewSubtask(e.target.value)}
-                placeholder="Nueva subtarea..."
+                placeholder="New subtask..."
                 className="h-8 text-sm"
               />
               <Button type="submit" variant="ghost" size="icon" className="h-8 w-8">
@@ -191,10 +197,10 @@ export function TaskDetail({
           <div className="flex items-center justify-between pt-2">
             <Button variant="destructive" size="sm" onClick={handleDelete}>
               <Trash2 className="mr-1 h-4 w-4" />
-              Eliminar
+              Delete
             </Button>
             <Button size="sm" onClick={handleSave} disabled={saving}>
-              {saving ? "Guardando..." : "Guardar"}
+              {saving ? "Saving..." : "Save"}
             </Button>
           </div>
         </div>

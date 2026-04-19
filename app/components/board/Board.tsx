@@ -8,6 +8,8 @@ import {
 import { Column, type ColumnData } from "./Column";
 import { TaskDetail } from "../task/TaskDetail";
 import { CreateTaskDialog } from "../task/CreateTaskDialog";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 import type { TaskData } from "./TaskCard";
 
 type BoardData = {
@@ -26,14 +28,12 @@ export function Board() {
     const boards = await res.json();
 
     if (boards.length === 0) {
-      // Crear board default la primera vez
       const createRes = await fetch("/api/boards", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Mi tablero" }),
+        body: JSON.stringify({ name: "My Board" }),
       });
       const newBoard = await createRes.json();
-      // Re-fetch para tener el board completo con tasks vacías
       const refetchRes = await fetch(`/api/boards/${newBoard.id}`);
       setBoard(await refetchRes.json());
     } else {
@@ -50,14 +50,12 @@ export function Board() {
 
     if (!destination || !board) return;
 
-    // Si no se movió a ningún lado
     if (
       source.droppableId === destination.droppableId &&
       source.index === destination.index
     )
       return;
 
-    // Actualizar estado local inmediatamente (optimistic update)
     const newColumns = [...board.columns];
 
     const sourceCol = newColumns.find((c) => c.id === source.droppableId);
@@ -69,11 +67,9 @@ export function Board() {
     const [movedTask] = sourceTasks.splice(source.index, 1);
 
     if (source.droppableId === destination.droppableId) {
-      // Mover dentro de la misma columna
       sourceTasks.splice(destination.index, 0, movedTask);
       sourceCol.tasks = sourceTasks;
     } else {
-      // Mover a otra columna
       const destTasks = [...destCol.tasks];
       destTasks.splice(destination.index, 0, movedTask);
       sourceCol.tasks = sourceTasks;
@@ -82,7 +78,6 @@ export function Board() {
 
     setBoard({ ...board, columns: newColumns });
 
-    // Persistir en el backend
     await fetch(`/api/tasks/${draggableId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -93,10 +88,39 @@ export function Board() {
     });
   };
 
+  const handleAddColumn = async () => {
+    if (!board) return;
+
+    const res = await fetch("/api/columns", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "New Column",
+        boardId: board.id,
+      }),
+    });
+
+    if (res.ok) fetchBoard();
+  };
+
+  const handleRenameColumn = async (columnId: string, name: string) => {
+    await fetch(`/api/columns/${columnId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    fetchBoard();
+  };
+
+  const handleDeleteColumn = async (columnId: string) => {
+    await fetch(`/api/columns/${columnId}`, { method: "DELETE" });
+    fetchBoard();
+  };
+
   if (!board) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <p className="text-muted-foreground">Cargando...</p>
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
@@ -111,8 +135,17 @@ export function Board() {
               column={column}
               onTaskClick={setSelectedTask}
               onAddTask={setCreateColumnId}
+              onRename={handleRenameColumn}
+              onDelete={handleDeleteColumn}
             />
           ))}
+          <button
+            onClick={handleAddColumn}
+            className="flex h-10 w-72 shrink-0 items-center justify-center gap-2 rounded-lg border border-dashed text-sm text-muted-foreground hover:border-foreground/30 hover:text-foreground transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Add column
+          </button>
         </div>
       </DragDropContext>
 

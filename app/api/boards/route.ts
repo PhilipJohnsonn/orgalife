@@ -33,9 +33,9 @@ export async function POST(request: NextRequest) {
       name,
       columns: {
         create: [
-          { name: "Por hacer", position: 0 },
-          { name: "En progreso", position: 1 },
-          { name: "Hecho", position: 2 },
+          { name: "To Do", position: 0 },
+          { name: "In Progress", position: 1 },
+          { name: "Done", position: 2 },
         ],
       },
     },

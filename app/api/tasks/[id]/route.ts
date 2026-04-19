@@ -41,6 +41,13 @@ export async function PATCH(
   if (body.position !== undefined) data.position = body.position;
   if (body.columnId !== undefined) data.columnId = body.columnId;
 
+  // tagIds: array of tag IDs to set (replaces all current tags)
+  if (body.tagIds !== undefined) {
+    data.tags = {
+      set: body.tagIds.map((tagId: string) => ({ id: tagId })),
+    };
+  }
+
   const task = await prisma.task.update({
     where: { id },
     data,
