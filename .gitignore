@@ -44,3 +44,7 @@ next-env.d.ts
 
 # docker volumes
 /docker/postgres-data
+
+# mcp server
+/mcp-server/node_modules
+/mcp-server/dist

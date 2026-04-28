@@ -1,0 +1,21 @@
+services:
+  app:
+    build:
+      context: ../../
+      dockerfile: Dockerfile
+    container_name: orgalife-app
+    ports:
+      - "3000:3000"
+    env_file:
+      - ../../.env
+    environment:
+      DATABASE_URL: "postgresql://orgalife:orgalife@orgalife-db:5432/orgalife"
+      NODE_ENV: production
+    networks:
+      - vps-network
+    restart: unless-stopped
+
+networks:
+  vps-network:
+    external: true
+    name: vps-network

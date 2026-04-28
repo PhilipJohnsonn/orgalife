@@ -17,6 +17,8 @@ App de productividad personal tipo Kanban. El objetivo es tener una herramienta 
 | ORM | **Prisma** | 7.7.0 |
 | Base de datos | **PostgreSQL** | 17 (Docker, puerto 5433) |
 | UI | **Tailwind CSS + shadcn/ui** | - |
+| Markdown | **react-markdown + remark-gfm** | - |
+| Markdown styles | **@tailwindcss/typography** | - |
 | Drag & Drop | **@hello-pangea/dnd** | - |
 | Íconos | **lucide-react** | - |
 | Auth | **Ninguna por ahora** | - |
@@ -66,11 +68,24 @@ App de productividad personal tipo Kanban. El objetivo es tener una herramienta 
 - [x] `docker/postgres-data` excluido del git
 - [x] Dev indicator de Next.js desactivado
 
+- [x] MCP Server para integración con Claude Code
+  - Paquete independiente en `mcp-server/` con `@modelcontextprotocol/sdk` + `zod`
+  - Llama a la API REST existente (no duplica lógica)
+  - 18 tools: CRUD de boards, columns, tasks, subtasks, tags + `move_task`
+  - Configurado en `.mcp.json` (raíz del proyecto) + permisos en `.claude/settings.local.json`
+  - Compilado y listo para usar (`npm run build` en `mcp-server/`)
+- [x] MCP Server probado end-to-end
+- [x] Descripción con markdown en TaskDetail
+  - Split-pane con toggle: panel izquierdo (detalle) + panel derecho (preview renderizado)
+  - `react-markdown` + `remark-gfm` + `@tailwindcss/typography`
+  - Textarea con altura fija y scroll interno, preview con scroll vertical propio
+  - Dialog con `h-[90vh]`, `overflow-hidden` — nunca scrollea el modal completo
+- [x] Filtrar tareas por tag en el Kanban (tabs con badges de color por tag, filtrado client-side)
+- [x] Board único invisible (un solo board auto-creado, sin referencia visual en la UI, schema intacto)
+
 ### PENDIENTE
 
-- [ ] Descripción con markdown (actualmente es textarea plano, falta renderizado markdown)
 - [ ] Reordenamiento de tareas dentro de la misma columna (persistencia correcta de posiciones)
-- [ ] Filtrar tareas por tag en el Kanban
 - [ ] Diseño responsive (mobile)
 - [ ] Vista semanal del calendario
 - [ ] Countdown a próximos eventos
@@ -86,8 +101,8 @@ App de productividad personal tipo Kanban. El objetivo es tener una herramienta 
 - [ ] Exportar contexto como .md para sesiones de AI
 - [ ] API endpoint que exponga el .md
 - [ ] LLM local como opción alternativa
-- [ ] Múltiples boards/proyectos
 - [ ] Integración con calendarios externos
+- [ ] MCP: tool de búsqueda/filtro de tareas (por prioridad, tag, fecha)
 
 ---
 
@@ -149,6 +164,21 @@ orgalife/
 ├── components/ui/                          # shadcn/ui
 ├── hooks/
 │   └── use-mobile.ts
+├── mcp-server/
+│   ├── src/
+│   │   ├── index.ts                       # Entry point (McpServer + StdioTransport)
+│   │   ├── api-client.ts                  # HTTP client para la API REST
+│   │   ├── util.ts                        # Helper toolHandler (error handling)
+│   │   └── tools/
+│   │       ├── boards.ts                  # list_boards, get_board, create/update/delete
+│   │       ├── columns.ts                 # create/update/delete_column
+│   │       ├── tasks.ts                   # create/get/update/move/delete_task
+│   │       ├── subtasks.ts                # add/update/delete_subtask
+│   │       └── tags.ts                    # list/create/update/delete_tag
+│   ├── package.json
+│   └── tsconfig.json
+├── .mcp.json                              # Config MCP para Claude Code
+├── .claude/settings.local.json            # Permisos MCP pre-autorizados
 ├── docker-compose.yml
 ├── next.config.ts
 ├── action-plan.md

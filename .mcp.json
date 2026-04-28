@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "orgalife": {
+      "command": "node",
+      "args": ["/Users/philip/Documents/workspace/orgalife/mcp-server/dist/index.js"],
+      "env": {
+        "ORGALIFE_API_URL": "http://localhost:3000"
+      }
+    }
+  }
+}

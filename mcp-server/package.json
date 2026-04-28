@@ -1,0 +1,22 @@
+{
+  "name": "orgalife-mcp-server",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "orgalife-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5"
+  }
+}

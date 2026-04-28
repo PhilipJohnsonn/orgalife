@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: orgalife-db
+    environment:
+      POSTGRES_DB: orgalife
+      POSTGRES_USER: orgalife
+      POSTGRES_PASSWORD: orgalife
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orgalife"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - vps-network
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+
+networks:
+  vps-network:
+    name: vps-network

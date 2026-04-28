@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   DragDropContext,
   type DropResult,
@@ -8,9 +8,15 @@ import {
 import { Column, type ColumnData } from "./Column";
 import { TaskDetail } from "../task/TaskDetail";
 import { CreateTaskDialog } from "../task/CreateTaskDialog";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Plus } from "lucide-react";
 import type { TaskData } from "./TaskCard";
+
+type Tag = {
+  id: string;
+  name: string;
+  color: string;
+};
 
 type BoardData = {
   id: string;
@@ -20,6 +26,8 @@ type BoardData = {
 
 export function Board() {
   const [board, setBoard] = useState<BoardData | null>(null);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [activeTagId, setActiveTagId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<TaskData | null>(null);
   const [createColumnId, setCreateColumnId] = useState<string | null>(null);
 
@@ -41,9 +49,37 @@ export function Board() {
     }
   }, []);
 
+  const fetchTags = useCallback(async () => {
+    const res = await fetch("/api/tags");
+    setTags(await res.json());
+  }, []);
+
   useEffect(() => {
     fetchBoard();
-  }, [fetchBoard]);
+    fetchTags();
+  }, [fetchBoard, fetchTags]);
+
+  useEffect(() => {
+    if (selectedTask || createColumnId) return;
+
+    const interval = setInterval(() => {
+      fetchBoard();
+      fetchTags();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [fetchBoard, fetchTags, selectedTask, createColumnId]);
+
+  const filteredColumns = useMemo(() => {
+    if (!board || !activeTagId) return board?.columns ?? [];
+
+    return board.columns.map((col) => ({
+      ...col,
+      tasks: col.tasks.filter((task) =>
+        task.tags.some((t) => t.id === activeTagId)
+      ),
+    }));
+  }, [board, activeTagId]);
 
   const handleDragEnd = async (result: DropResult) => {
     const { source, destination, draggableId } = result;
@@ -127,9 +163,39 @@ export function Board() {
 
   return (
     <>
+      {/* Tag filter tabs */}
+      {tags.length > 0 && (
+        <div className="flex items-center gap-2 border-b px-6 py-3">
+          <Badge
+            variant={activeTagId === null ? "default" : "outline"}
+            className="cursor-pointer select-none"
+            onClick={() => setActiveTagId(null)}
+          >
+            All
+          </Badge>
+          {tags.map((tag) => (
+            <Badge
+              key={tag.id}
+              variant={activeTagId === tag.id ? "default" : "outline"}
+              className="cursor-pointer select-none"
+              style={
+                activeTagId === tag.id
+                  ? { backgroundColor: tag.color, color: "#fff", borderColor: tag.color }
+                  : { borderColor: tag.color, color: tag.color }
+              }
+              onClick={() =>
+                setActiveTagId(activeTagId === tag.id ? null : tag.id)
+              }
+            >
+              {tag.name}
+            </Badge>
+          ))}
+        </div>
+      )}
+
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="flex flex-1 gap-4 overflow-x-auto p-6">
-          {board.columns.map((column) => (
+          {filteredColumns.map((column) => (
             <Column
               key={column.id}
               column={column}
@@ -154,7 +220,10 @@ export function Board() {
           task={selectedTask}
           open={!!selectedTask}
           onClose={() => setSelectedTask(null)}
-          onUpdate={fetchBoard}
+          onUpdate={() => {
+            fetchBoard();
+            fetchTags();
+          }}
         />
       )}
 
@@ -163,7 +232,10 @@ export function Board() {
           columnId={createColumnId}
           open={!!createColumnId}
           onClose={() => setCreateColumnId(null)}
-          onCreate={fetchBoard}
+          onCreate={() => {
+            fetchBoard();
+            fetchTags();
+          }}
         />
       )}
     </>

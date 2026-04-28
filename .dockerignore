@@ -1,0 +1,8 @@
+.git
+node_modules
+.next
+docker/
+.env
+mcp-server/
+*.log
+.DS_Store
