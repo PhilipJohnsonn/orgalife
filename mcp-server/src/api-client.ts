@@ -8,9 +8,15 @@ export class OrgaLifeApiClient {
   async request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     try {
+      const headers: Record<string, string> = {};
+      if (process.env.MCP_API_KEY) {
+        headers["Authorization"] = `Bearer ${process.env.MCP_API_KEY}`;
+      }
+      if (body) headers["Content-Type"] = "application/json";
+
       const response = await fetch(url, {
         method,
-        headers: body ? { "Content-Type": "application/json" } : undefined,
+        headers,
         body: body ? JSON.stringify(body) : undefined,
       });
 

@@ -4,7 +4,8 @@
       "command": "node",
       "args": ["/Users/philip/Documents/workspace/orgalife/mcp-server/dist/index.js"],
       "env": {
-        "ORGALIFE_API_URL": "http://localhost:3000"
+        "ORGALIFE_API_URL": "https://orgalife.jensenpc.com",
+        "MCP_API_KEY": "2c664c6c31b242f69bc92e2322c1acbc588e6e9c0b617da72f1c43ba1e4d8149"
       }
     }
   }
