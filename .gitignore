@@ -44,8 +44,10 @@ next-env.d.ts
 
 # docker volumes
 /docker/postgres-data
+/data
 
 # mcp server
 /mcp-server/node_modules
 /mcp-server/dist
 .mcp.json
+.claude/settings.local.json

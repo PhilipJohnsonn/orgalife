@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Droppable } from "@hello-pangea/dnd";
 import { TaskCard, type TaskData } from "./TaskCard";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, Archive } from "lucide-react";
 
 export type ColumnData = {
   id: string;
@@ -26,15 +26,28 @@ export function Column({
   onAddTask,
   onRename,
   onDelete,
+  onArchiveAll,
+  onQuickAdd,
 }: {
   column: ColumnData;
   onTaskClick: (task: TaskData) => void;
   onAddTask: (columnId: string) => void;
   onRename: (columnId: string, name: string) => void;
   onDelete: (columnId: string) => void;
+  onArchiveAll: (columnId: string) => void;
+  onQuickAdd: (columnId: string, title: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(column.name);
+  const [quickAddValue, setQuickAddValue] = useState("");
+  const quickAddRef = useRef<HTMLInputElement>(null);
+
+  const handleQuickAdd = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickAddValue.trim()) return;
+    onQuickAdd(column.id, quickAddValue.trim());
+    setQuickAddValue("");
+  };
 
   const handleRename = () => {
     if (name.trim() && name !== column.name) {
@@ -83,6 +96,10 @@ export function Column({
                 <Pencil className="mr-2 h-3.5 w-3.5" />
                 Rename
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onArchiveAll(column.id)}>
+                <Archive className="mr-2 h-3.5 w-3.5" />
+                Archive all
+              </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={() => onDelete(column.id)}
                 className="text-destructive"
@@ -122,6 +139,22 @@ export function Column({
           </div>
         )}
       </Droppable>
+
+      <form onSubmit={handleQuickAdd} className="mt-2">
+        <Input
+          ref={quickAddRef}
+          value={quickAddValue}
+          onChange={(e) => setQuickAddValue(e.target.value)}
+          placeholder="Quick add..."
+          className="h-8 text-sm"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setQuickAddValue("");
+              quickAddRef.current?.blur();
+            }
+          }}
+        />
+      </form>
     </div>
   );
 }

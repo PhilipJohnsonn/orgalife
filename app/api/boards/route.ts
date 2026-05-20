@@ -2,13 +2,16 @@ import { prisma } from "@/app/lib/prisma";
 import { NextRequest } from "next/server";
 
 // GET /api/boards — Lista todos los boards con sus columnas y tareas
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const includeArchived = request.nextUrl.searchParams.get("includeArchived") === "true";
+
   const boards = await prisma.board.findMany({
     include: {
       columns: {
         orderBy: { position: "asc" },
         include: {
           tasks: {
+            where: includeArchived ? undefined : { isArchived: false },
             orderBy: { position: "asc" },
             include: {
               subtasks: { orderBy: { position: "asc" } },

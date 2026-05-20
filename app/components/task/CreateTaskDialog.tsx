@@ -28,6 +28,7 @@ export function CreateTaskDialog({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
+  const [startDate, setStartDate] = useState("");
   const [dueDate, setDueDate] = useState(defaultDueDate);
   const [loading, setLoading] = useState(false);
 
@@ -39,12 +40,13 @@ export function CreateTaskDialog({
     await fetch("/api/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, description, priority, dueDate: dueDate || null, columnId }),
+      body: JSON.stringify({ title, description, priority, startDate: startDate || null, dueDate: dueDate || null, columnId }),
     });
     setLoading(false);
     setTitle("");
     setDescription("");
     setPriority("medium");
+    setStartDate("");
     setDueDate("");
     onCreate();
     onClose();
@@ -71,6 +73,13 @@ export function CreateTaskDialog({
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
           />
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">
+              Start date (optional)
+            </label>
+            <DatePicker value={startDate} onChange={setStartDate} />
+          </div>
 
           <div>
             <label className="mb-1 block text-sm font-medium">

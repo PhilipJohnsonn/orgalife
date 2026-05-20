@@ -3,10 +3,11 @@ import { NextRequest } from "next/server";
 
 // GET /api/boards/:id — Un board con todo su contenido
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const includeArchived = request.nextUrl.searchParams.get("includeArchived") === "true";
 
   const board = await prisma.board.findUnique({
     where: { id },
@@ -15,6 +16,7 @@ export async function GET(
         orderBy: { position: "asc" },
         include: {
           tasks: {
+            where: includeArchived ? undefined : { isArchived: false },
             orderBy: { position: "asc" },
             include: {
               subtasks: { orderBy: { position: "asc" } },

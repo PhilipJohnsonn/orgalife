@@ -35,7 +35,9 @@ model Task {
   description String?   @db.Text
   priority    String    @default("medium")
   position    Int
+  startDate   DateTime?
   dueDate     DateTime?
+  isArchived  Boolean   @default(false)
   columnId    String
   column      Column    @relation(fields: [columnId], references: [id], onDelete: Cascade)
   subtasks    Subtask[]

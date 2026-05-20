@@ -3,7 +3,7 @@
 import { Draggable } from "@hello-pangea/dnd";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, CheckSquare } from "lucide-react";
+import { Calendar, CheckSquare, Clock } from "lucide-react";
 
 type Subtask = {
   id: string;
@@ -23,7 +23,9 @@ export type TaskData = {
   description: string | null;
   priority: string;
   position: number;
+  startDate: string | null;
   dueDate: string | null;
+  isArchived: boolean;
   subtasks: Subtask[];
   tags: Tag[];
 };
@@ -45,6 +47,9 @@ export function TaskCard({
 }) {
   const doneCount = task.subtasks.filter((s) => s.done).length;
   const totalCount = task.subtasks.length;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const isScheduled = task.startDate ? new Date(task.startDate) > today : false;
 
   return (
     <Draggable draggableId={task.id} index={index}>
@@ -58,7 +63,9 @@ export function TaskCard({
             onClick={onClick}
             className={`cursor-pointer border-l-4 p-3 transition-all duration-200 hover:shadow-md ${
               priorityColors[task.priority] || priorityColors.medium
-            } ${snapshot.isDragging ? "shadow-lg rotate-2" : "rotate-0"}`}
+            } ${snapshot.isDragging ? "shadow-lg rotate-2" : "rotate-0"} ${
+              isScheduled ? "opacity-50" : ""
+            }`}
           >
             {task.tags.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-1">
@@ -82,6 +89,15 @@ export function TaskCard({
                 <span className="flex items-center gap-1">
                   <CheckSquare className="h-3 w-3" />
                   {doneCount}/{totalCount}
+                </span>
+              )}
+              {isScheduled && task.startDate && (
+                <span className="flex items-center gap-1 text-blue-500">
+                  <Clock className="h-3 w-3" />
+                  Starts {new Date(task.startDate).toLocaleDateString("en-US", {
+                    day: "numeric",
+                    month: "short",
+                  })}
                 </span>
               )}
               {task.dueDate && (

@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:17
+    container_name: orgalife-db
+    environment:
+      POSTGRES_USER: orgalife
+      POSTGRES_PASSWORD: orgalife
+      POSTGRES_DB: orgalife
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./data:/var/lib/postgresql/data
+    restart: unless-stopped

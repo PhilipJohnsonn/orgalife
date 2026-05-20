@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Trash2, Plus, Eye, EyeOff } from "lucide-react";
+import { Trash2, Plus, Eye, EyeOff, Archive, ArchiveRestore } from "lucide-react";
 import { DatePicker } from "@/app/components/DatePicker";
 import { TagPicker } from "./TagPicker";
 import type { TaskData } from "../board/TaskCard";
@@ -33,6 +33,9 @@ export function TaskDetail({
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || "");
   const [priority, setPriority] = useState(task.priority);
+  const [startDate, setStartDate] = useState(
+    task.startDate ? task.startDate.slice(0, 10) : ""
+  );
   const [dueDate, setDueDate] = useState(
     task.dueDate ? task.dueDate.slice(0, 10) : ""
   );
@@ -51,6 +54,7 @@ export function TaskDetail({
         title,
         description,
         priority,
+        startDate: startDate || null,
         dueDate: dueDate || null,
         tagIds: tags.map((t) => t.id),
       }),
@@ -155,6 +159,11 @@ export function TaskDetail({
             </div>
 
             <div>
+              <p className="mb-2 text-sm font-medium">Start date</p>
+              <DatePicker value={startDate} onChange={setStartDate} />
+            </div>
+
+            <div>
               <p className="mb-2 text-sm font-medium">Due date</p>
               <DatePicker value={dueDate} onChange={setDueDate} />
             </div>
@@ -216,10 +225,31 @@ export function TaskDetail({
             </div>
 
             <div className="flex items-center justify-between pt-2">
-              <Button variant="destructive" size="sm" onClick={handleDelete}>
-                <Trash2 className="mr-1 h-4 w-4" />
-                Delete
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="destructive" size="sm" onClick={handleDelete}>
+                  <Trash2 className="mr-1 h-4 w-4" />
+                  Delete
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    await fetch(`/api/tasks/${task.id}`, {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ isArchived: !task.isArchived }),
+                    });
+                    onUpdate();
+                    onClose();
+                  }}
+                >
+                  {task.isArchived ? (
+                    <><ArchiveRestore className="mr-1 h-4 w-4" />Unarchive</>
+                  ) : (
+                    <><Archive className="mr-1 h-4 w-4" />Archive</>
+                  )}
+                </Button>
+              </div>
               <Button size="sm" onClick={handleSave} disabled={saving}>
                 {saving ? "Saving..." : "Save"}
               </Button>
