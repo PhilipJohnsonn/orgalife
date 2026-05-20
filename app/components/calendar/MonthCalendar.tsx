@@ -166,7 +166,7 @@ function BarEl({ bar, cols }: { bar: EventBar; cols: number }) {
 
 export function MonthCalendar() {
   const today = new Date();
-  const [view, setView] = useState<"month" | "week">("month");
+  const [view, setView] = useState<"month" | "week">("week");
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [weekStart, setWeekStart] = useState(() => getWeekStart(today));
@@ -321,10 +321,26 @@ export function MonthCalendar() {
 
   const weekView = (
     <div className="flex flex-1 flex-col border-l border-t overflow-hidden">
-      {/* Multi-day strip */}
+      {/* Day headers — always at the top */}
+      <div className="flex shrink-0 border-b">
+        {weekDates.map((date, di) => (
+          <div
+            key={di}
+            className={`flex-1 border-r px-2 py-2 text-center ${isToday(date) ? "bg-primary/10" : "bg-muted/50"}`}
+          >
+            <p className="text-xs font-medium text-muted-foreground">
+              {date.toLocaleDateString("en-US", { weekday: "short" })}
+            </p>
+            <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold ${isToday(date) ? "bg-primary text-primary-foreground" : ""}`}>
+              {date.getDate()}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Multi-day strip — below headers */}
       {stripHeight > 0 && (
         <div className="relative shrink-0 border-b" style={{ height: `${stripHeight}px` }}>
-          {/* Grid lines */}
           <div className="absolute inset-0 flex pointer-events-none">
             {weekDates.map((_, i) => <div key={i} className="flex-1 border-r" />)}
           </div>
@@ -353,7 +369,7 @@ export function MonthCalendar() {
         </div>
       )}
 
-      {/* Day columns */}
+      {/* Day content columns — no headers, those are above */}
       <div className="flex flex-1">
         {weekDates.map((date, di) => {
           const dayTasks = singleDayTasks(date);
@@ -363,14 +379,6 @@ export function MonthCalendar() {
               className="group flex flex-1 flex-col border-r cursor-pointer hover:bg-muted/20"
               onClick={() => setCreateDate(fmt(date))}
             >
-              <div className={`border-b px-2 py-2 text-center shrink-0 ${isToday(date) ? "bg-primary/10" : "bg-muted/50"}`}>
-                <p className="text-xs font-medium text-muted-foreground">
-                  {date.toLocaleDateString("en-US", { weekday: "short" })}
-                </p>
-                <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold ${isToday(date) ? "bg-primary text-primary-foreground" : ""}`}>
-                  {date.getDate()}
-                </span>
-              </div>
               <div className="flex flex-1 flex-col gap-1 p-2 overflow-y-auto" onClick={e => e.stopPropagation()}>
                 {dayTasks.map(t => (
                   <div
