@@ -38,6 +38,13 @@ function taskColor(task: Task) {
   return ({ high: "#ef4444", medium: "#eab308", low: "#3b82f6" })[task.priority] ?? "#eab308";
 }
 
+function colorBg(hex: string, alpha = 0.07) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 function s0(d: Date) {
   const r = new Date(d); r.setHours(0, 0, 0, 0); return r;
 }
@@ -368,13 +375,13 @@ export function MonthCalendar() {
           return (
             <div
               key={`wb-${bi}`}
-              className="pointer-events-none p-0.5"
+              className="pointer-events-none px-1.5 py-1"
               style={{ gridColumn: `${bar.startCol + 1} / span ${bar.colSpan}`, gridRow: bar.lane + 1 }}
             >
               <div
                 title={bar.task.title}
-                className={`pointer-events-auto overflow-hidden bg-background shadow-sm h-full ${rounded} ${bar.startsHere ? "border-l-2" : ""}`}
-                style={{ borderLeftColor: bar.startsHere ? color : undefined }}
+                className={`pointer-events-auto overflow-hidden shadow-sm h-full ${rounded} ${bar.startsHere ? "border-l-2" : ""}`}
+                style={{ borderLeftColor: bar.startsHere ? color : undefined, backgroundColor: colorBg(color) }}
               >
                 <div className="px-2 py-1">
                   <p className="text-xs font-medium truncate">{bar.task.title}</p>
@@ -389,19 +396,22 @@ export function MonthCalendar() {
         {weekDates.map((date, di) => (
           <div
             key={`sd-${di}`}
-            className="pointer-events-none flex flex-col gap-1 p-2 overflow-y-auto"
+            className="pointer-events-none flex flex-col gap-2 p-2 overflow-y-auto"
             style={{ gridColumn: di + 1, gridRow: weekMaxLane >= 0 ? weekMaxLane + 2 : 1 }}
           >
-            {singleDayTasks(date).map(t => (
+            {singleDayTasks(date).map(t => {
+              const c = taskColor(t);
+              return (
               <div
                 key={t.id}
-                className="pointer-events-auto rounded border-l-2 bg-background px-2 py-1 text-xs shadow-sm"
-                style={{ borderLeftColor: taskColor(t) }}
+                className="pointer-events-auto rounded border-l-2 px-2 py-1 text-xs shadow-sm"
+                style={{ borderLeftColor: c, backgroundColor: colorBg(c) }}
               >
                 <p className="font-medium truncate">{t.title}</p>
                 <p className="text-muted-foreground truncate">{t.column.name}</p>
               </div>
-            ))}
+            );
+            })}
           </div>
         ))}
       </div>
