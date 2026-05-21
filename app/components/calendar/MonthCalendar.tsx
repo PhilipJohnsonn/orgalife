@@ -341,28 +341,32 @@ export function MonthCalendar() {
 
       {/* Multi-day strip — below headers */}
       {stripHeight > 0 && (
-        <div className="relative shrink-0 border-b" style={{ height: `${stripHeight}px` }}>
+        <div className="relative shrink-0" style={{ height: `${stripHeight}px` }}>
           <div className="absolute inset-0 flex pointer-events-none">
             {weekDates.map((_, i) => <div key={i} className="flex-1 border-r" />)}
           </div>
           {weekBars.map((bar, bi) => {
             const color = taskColor(bar.task);
+            const rounded =
+              bar.startsHere && bar.endsHere ? "rounded" :
+              bar.startsHere ? "rounded-l" :
+              bar.endsHere ? "rounded-r" : "rounded-none";
             return (
               <div
                 key={`wb-${bi}`}
                 title={bar.task.title}
-                className="absolute overflow-hidden rounded border-l-2 bg-background shadow-sm"
+                className={`absolute overflow-hidden bg-background shadow-sm ${rounded} ${bar.startsHere ? "border-l-2" : ""}`}
                 style={{
                   left: `calc(${(bar.startCol / 7) * 100}% + 2px)`,
                   width: `calc(${(bar.colSpan / 7) * 100}% - 4px)`,
                   top: `${3 + bar.lane * WEEK_BAR_H}px`,
                   height: `${WEEK_BAR_H - 4}px`,
-                  borderLeftColor: color,
+                  borderLeftColor: bar.startsHere ? color : undefined,
                 }}
               >
-                <div className="flex flex-col justify-center h-full px-2">
-                  <p className="text-xs font-medium truncate leading-tight">{bar.task.title}</p>
-                  <p className="text-[10px] text-muted-foreground truncate leading-tight">{bar.task.column.name}</p>
+                <div className="px-2 py-1">
+                  <p className="text-xs font-medium truncate">{bar.task.title}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{bar.task.column.name}</p>
                 </div>
               </div>
             );
