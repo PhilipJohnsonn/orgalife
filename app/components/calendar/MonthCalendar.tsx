@@ -318,16 +318,15 @@ export function MonthCalendar() {
   });
   const weekBars = getBarsForDates(tasks, weekDates);
   const weekMaxLane = weekBars.length ? Math.max(...weekBars.map(b => b.lane)) : -1;
-  const stripHeight = weekBars.length ? (weekMaxLane + 1) * WEEK_BAR_H + 6 : 0;
 
   const weekView = (
     <div className="flex flex-1 flex-col border-l border-t overflow-hidden">
-      {/* Day headers — always at the top */}
-      <div className="flex shrink-0 border-b">
+      {/* Day headers */}
+      <div className="grid shrink-0 border-b" style={{ gridTemplateColumns: "repeat(7, minmax(0, 1fr))" }}>
         {weekDates.map((date, di) => (
           <div
             key={di}
-            className={`flex-1 border-r px-2 py-2 text-center ${isToday(date) ? "bg-primary/10" : "bg-muted/50"}`}
+            className={`border-r px-2 py-2 text-center ${isToday(date) ? "bg-primary/10" : "bg-muted/50"}`}
           >
             <p className="text-xs font-medium text-muted-foreground">
               {date.toLocaleDateString("en-US", { weekday: "short" })}
@@ -339,72 +338,72 @@ export function MonthCalendar() {
         ))}
       </div>
 
-      {/* Multi-day strip — below headers */}
-      {stripHeight > 0 && (
-        <div className="relative shrink-0" style={{ height: `${stripHeight}px` }}>
-          <div className="absolute inset-0 flex pointer-events-none">
-            {weekDates.map((_, i) => <div key={i} className="flex-1 border-r" />)}
-          </div>
-          {weekBars.map((bar, bi) => {
-            const color = taskColor(bar.task);
-            const rounded =
-              bar.startsHere && bar.endsHere ? "rounded" :
-              bar.startsHere ? "rounded-l" :
-              bar.endsHere ? "rounded-r" : "rounded-none";
-            return (
+      {/* Body: single unified grid — one column system for everything */}
+      <div
+        className="flex-1 grid overflow-hidden"
+        style={{
+          gridTemplateColumns: "repeat(7, minmax(0, 1fr))",
+          gridTemplateRows: weekMaxLane >= 0
+            ? `repeat(${weekMaxLane + 1}, ${WEEK_BAR_H + 4}px) 1fr`
+            : "1fr",
+        }}
+      >
+        {/* Background columns: span all rows, own the borders + hover + click */}
+        {weekDates.map((date, di) => (
+          <div
+            key={`bg-${di}`}
+            className="border-r cursor-pointer hover:bg-muted/20"
+            style={{ gridColumn: di + 1, gridRow: "1 / -1" }}
+            onClick={() => setCreateDate(fmt(date))}
+          />
+        ))}
+
+        {/* Multi-day cards: span across columns, pointer-events-none wrapper so hover passes to background */}
+        {weekBars.map((bar, bi) => {
+          const color = taskColor(bar.task);
+          const rounded =
+            bar.startsHere && bar.endsHere ? "rounded" :
+            bar.startsHere ? "rounded-l" :
+            bar.endsHere ? "rounded-r" : "rounded-none";
+          return (
+            <div
+              key={`wb-${bi}`}
+              className="pointer-events-none p-0.5"
+              style={{ gridColumn: `${bar.startCol + 1} / span ${bar.colSpan}`, gridRow: bar.lane + 1 }}
+            >
               <div
-                key={`wb-${bi}`}
                 title={bar.task.title}
-                className={`absolute overflow-hidden bg-background shadow-sm ${rounded} ${bar.startsHere ? "border-l-2" : ""}`}
-                style={{
-                  left: `calc(${(bar.startCol / 7) * 100}% + 2px)`,
-                  width: `calc(${(bar.colSpan / 7) * 100}% - 4px)`,
-                  top: `${3 + bar.lane * WEEK_BAR_H}px`,
-                  height: `${WEEK_BAR_H - 4}px`,
-                  borderLeftColor: bar.startsHere ? color : undefined,
-                }}
+                className={`pointer-events-auto overflow-hidden bg-background shadow-sm h-full ${rounded} ${bar.startsHere ? "border-l-2" : ""}`}
+                style={{ borderLeftColor: bar.startsHere ? color : undefined }}
               >
                 <div className="px-2 py-1">
                   <p className="text-xs font-medium truncate">{bar.task.title}</p>
                   <p className="text-[10px] text-muted-foreground truncate">{bar.task.column.name}</p>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Day content columns — no headers, those are above */}
-      <div className="flex flex-1">
-        {weekDates.map((date, di) => {
-          const dayTasks = singleDayTasks(date);
-          return (
-            <div
-              key={di}
-              className="group flex flex-1 flex-col border-r cursor-pointer hover:bg-muted/20"
-              onClick={() => setCreateDate(fmt(date))}
-            >
-              <div className="flex flex-1 flex-col gap-1 p-2 overflow-y-auto" onClick={e => e.stopPropagation()}>
-                {dayTasks.map(t => (
-                  <div
-                    key={t.id}
-                    className="rounded border-l-2 bg-background px-2 py-1 text-xs shadow-sm"
-                    style={{ borderLeftColor: taskColor(t) }}
-                  >
-                    <p className="font-medium truncate">{t.title}</p>
-                    <p className="text-muted-foreground truncate">{t.column.name}</p>
-                  </div>
-                ))}
-                <div
-                  className="mt-auto flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity py-1"
-                  onClick={e => { e.stopPropagation(); setCreateDate(fmt(date)); }}
-                >
-                  <Plus className="h-3.5 w-3.5 text-muted-foreground" />
-                </div>
-              </div>
             </div>
           );
         })}
+
+        {/* Single-day task cells: pointer-events-none so empty-area clicks reach background */}
+        {weekDates.map((date, di) => (
+          <div
+            key={`sd-${di}`}
+            className="pointer-events-none flex flex-col gap-1 p-2 overflow-y-auto"
+            style={{ gridColumn: di + 1, gridRow: weekMaxLane >= 0 ? weekMaxLane + 2 : 1 }}
+          >
+            {singleDayTasks(date).map(t => (
+              <div
+                key={t.id}
+                className="pointer-events-auto rounded border-l-2 bg-background px-2 py-1 text-xs shadow-sm"
+                style={{ borderLeftColor: taskColor(t) }}
+              >
+                <p className="font-medium truncate">{t.title}</p>
+                <p className="text-muted-foreground truncate">{t.column.name}</p>
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
     </div>
   );
