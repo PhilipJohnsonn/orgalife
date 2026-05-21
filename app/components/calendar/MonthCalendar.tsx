@@ -30,6 +30,7 @@ type EventBar = {
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const BAR_H = 18;
+const WEEK_BAR_H = 42;
 const DAY_NUM_H = 26;
 
 function taskColor(task: Task) {
@@ -317,7 +318,7 @@ export function MonthCalendar() {
   });
   const weekBars = getBarsForDates(tasks, weekDates);
   const weekMaxLane = weekBars.length ? Math.max(...weekBars.map(b => b.lane)) : -1;
-  const stripHeight = weekBars.length ? (weekMaxLane + 1) * BAR_H + 6 : 0;
+  const stripHeight = weekBars.length ? (weekMaxLane + 1) * WEEK_BAR_H + 6 : 0;
 
   const weekView = (
     <div className="flex flex-1 flex-col border-l border-t overflow-hidden">
@@ -346,23 +347,23 @@ export function MonthCalendar() {
           </div>
           {weekBars.map((bar, bi) => {
             const color = taskColor(bar.task);
-            const r = bar.startsHere && bar.endsHere ? "9999px" : bar.startsHere ? "9999px 0 0 9999px" : bar.endsHere ? "0 9999px 9999px 0" : "0";
             return (
               <div
                 key={`wb-${bi}`}
                 title={bar.task.title}
-                className="absolute text-[10px] text-white overflow-hidden whitespace-nowrap leading-none flex items-center"
+                className="absolute overflow-hidden rounded border-l-2 bg-background shadow-sm"
                 style={{
                   left: `calc(${(bar.startCol / 7) * 100}% + 2px)`,
                   width: `calc(${(bar.colSpan / 7) * 100}% - 4px)`,
-                  top: `${3 + bar.lane * BAR_H}px`,
-                  height: `${BAR_H - 2}px`,
-                  backgroundColor: color,
-                  borderRadius: r,
-                  paddingLeft: bar.startsHere ? "8px" : "4px",
+                  top: `${3 + bar.lane * WEEK_BAR_H}px`,
+                  height: `${WEEK_BAR_H - 4}px`,
+                  borderLeftColor: color,
                 }}
               >
-                {bar.startsHere && bar.task.title}
+                <div className="flex flex-col justify-center h-full px-2">
+                  <p className="text-xs font-medium truncate leading-tight">{bar.task.title}</p>
+                  <p className="text-[10px] text-muted-foreground truncate leading-tight">{bar.task.column.name}</p>
+                </div>
               </div>
             );
           })}
