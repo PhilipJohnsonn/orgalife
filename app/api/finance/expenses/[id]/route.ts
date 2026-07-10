@@ -19,7 +19,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     include: { statement: true, transaction: true },
   });
 
-  // Sync con la transacción derivada: excluir la borra, reincluir la recrea.
+  // Sync con la transacción derivada: excluir la borra, reincluir la recrea,
+  // editar descripción/montos la actualiza.
   if (isExcluded === true && expense.transaction) {
     await prisma.transaction.delete({ where: { id: expense.transaction.id } });
   } else if (
@@ -28,6 +29,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     (expense.amountARS != null || expense.amountUSD != null)
   ) {
     await prisma.transaction.create({
+      data: buildTransactionData(expense, expense.statement.cardName, expense.statement.dueDate, exchangeRate),
+    });
+  } else if (
+    expense.transaction &&
+    !expense.isExcluded &&
+    (expense.amountARS != null || expense.amountUSD != null) &&
+    (description !== undefined || amountARS !== undefined || amountUSD !== undefined)
+  ) {
+    await prisma.transaction.update({
+      where: { id: expense.transaction.id },
       data: buildTransactionData(expense, expense.statement.cardName, expense.statement.dueDate, exchangeRate),
     });
   }

@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
 
     await tx.transaction.deleteMany({
       where: {
+        type: "EXPENSE",
         method: "CREDIT",
         cardName,
         cardExpenseId: null,
