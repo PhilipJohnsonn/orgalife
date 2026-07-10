@@ -10,7 +10,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const { type, description, amount, currency, amountUSD, date, isRecurring, method, accountId, categoryId } = await request.json();
+  const { type, description, amount, currency, amountUSD, date, isRecurring, method, cardName, accountId, categoryId } = await request.json();
 
   const transaction = await prisma.transaction.create({
     data: {
@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
       date: new Date(date),
       isRecurring: isRecurring ?? false,
       method: method ?? "CASH",
+      cardName: cardName ?? null,
       accountId: accountId || null,
       categoryId: categoryId || null,
     },

@@ -11,6 +11,7 @@ export interface CardExpense {
   id: string;
   statementId: string;
   description: string;
+  purchaseDate: string | null;
   installmentInfo: string | null;
   originalCurrency: string | null;
   originalAmount: number | null;
@@ -61,6 +62,7 @@ export interface Transaction {
   date: string;
   isRecurring: boolean;
   method: "CASH" | "DEBIT" | "CREDIT" | "TRANSFER";
+  cardName: string | null;
   accountId: string | null;
   categoryId: string | null;
   cardExpenseId: string | null;

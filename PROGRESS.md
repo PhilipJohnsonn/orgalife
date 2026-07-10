@@ -45,7 +45,7 @@
 - [x] Deploy en VPS via GitHub Actions (push main → build → restart)
 - [x] Scripts `pull-db-from-prod` / `push-db-to-prod`
 
-### Finanzas (`/finanzas`) — Rediseño completado hasta paso 3
+### Finanzas (`/finanzas`) — Rediseño completado hasta paso 4
 
 **Modelo mental:** sin períodos fijos, todo en `Transaction`, categorías del usuario, multi-moneda.
 
@@ -74,13 +74,20 @@
 - [x] Tarjetas: upload PDF → preview expenses → toggle excluidos → confirmar y guardar
 - [x] PDF parser (pdfjs-dist) — soporta ICBC VISA y ICBC MASTER, extrae moneda original
 - [x] **Paso 3:** `TransactionsList` — form dialog (tipo, descripción, monto, moneda, fecha, método, cuenta, categoría, recurrente) + lista con edit/delete. `amountUSD` se calcula client-side con el TC (USD directo, ARS/TC, otras monedas → null)
+- [x] **Paso 4:** PDF import → `Transaction` por cada `CardExpense` no excluido (link via `cardExpenseId`):
+  - Schema: `CardExpense.purchaseDate` (fecha de compra parseada del PDF) + `Transaction.cardName`
+  - Parser extrae fecha por ítem (VISA `DD.MM.YY`, MASTER `DD-Mmm-YY`)
+  - Transacción: `EXPENSE`/`CREDIT`, `currency`=ARS si hay `amountARS` sino USD, `amountUSD` = del PDF o `amountARS/TC` (el client manda `exchangeRate`), fecha = compra (cuotas → `dueDate` del resumen, porque el PDF trae la fecha de la compra original)
+  - Dedup: al confirmar un import se borran las transacciones manuales `CREDIT` de esa tarjeta con fecha ≤ última compra del resumen (convención: gastos de tarjeta se cargan a mano solo para el día a día, el resumen las reemplaza). Form manual tiene selector de tarjeta cuando método=Crédito
+  - Sync total: borrar resumen → borra sus transacciones; excluir expense → borra la suya; re-incluir → la recrea
+  - Lógica compartida en `app/lib/finance.ts` (`buildTransactionData`)
+  - Limitación conocida: hay PDFs de MASTER con otro layout que el parser no reconoce (0 ítems) — pre-existente
 
 ---
 
 ## Pendiente
 
-### Finanzas — plan de ejecución (continuar desde paso 4)
-- [ ] **Paso 4:** PDF import → crear `Transaction` por cada `CardExpense` confirmado (link via `cardExpenseId`)
+### Finanzas — plan de ejecución (continuar desde paso 5)
 - [ ] **Paso 5:** Vista principal — lista de transacciones con filtro por rango de fechas + resumen de balance por cuenta/moneda
 - [ ] **Paso 6:** Gráficos (ingresos vs gastos, por categoría)
 

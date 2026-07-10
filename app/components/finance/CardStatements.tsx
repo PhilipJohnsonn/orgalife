@@ -12,6 +12,7 @@ import { Upload, CreditCard, ChevronDown, ChevronRight, Check } from "lucide-rea
 
 interface Props {
   statements: CardStatement[];
+  exchangeRate: number;
   onUpdate: () => void;
 }
 
@@ -33,6 +34,7 @@ function isTaxDescription(desc: string) {
 
 interface ParsedExpense {
   description: string;
+  purchaseDate: string | null;
   installmentInfo: string | null;
   originalCurrency: string | null;
   originalAmount: number | null;
@@ -49,7 +51,7 @@ interface UploadState {
   expenses: ParsedExpense[];
 }
 
-export function CardStatements({ statements, onUpdate }: Props) {
+export function CardStatements({ statements, exchangeRate, onUpdate }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [upload, setUpload] = useState<UploadState | null>(null);
@@ -110,6 +112,7 @@ export function CardStatements({ statements, onUpdate }: Props) {
         amountUSD: totalUSD || null,
         dueDate: upload.dueDate || null,
         expenses: upload.expenses,
+        exchangeRate,
       }),
     });
     setUpload(null);
@@ -132,6 +135,7 @@ export function CardStatements({ statements, onUpdate }: Props) {
       body: JSON.stringify({
         isExcluded: !expense.isExcluded,
         excludeReason: !expense.isExcluded ? "Excluido manualmente" : null,
+        exchangeRate,
       }),
     });
     onUpdate();
@@ -235,6 +239,11 @@ export function CardStatements({ statements, onUpdate }: Props) {
                           onCheckedChange={() => toggleUploadExpense(idx)}
                           className="scale-75"
                         />
+                        {exp.purchaseDate && (
+                          <span className="text-xs text-muted-foreground w-14 shrink-0">
+                            {new Date(exp.purchaseDate).toLocaleDateString("es-AR", { day: "2-digit", month: "short", timeZone: "UTC" })}
+                          </span>
+                        )}
                         <span className="flex-1 truncate">{exp.description}</span>
                         {exp.installmentInfo && (
                           <Badge variant="outline" className="text-xs shrink-0">{exp.installmentInfo}</Badge>
@@ -397,6 +406,11 @@ export function CardStatements({ statements, onUpdate }: Props) {
                             onCheckedChange={() => toggleExpenseExcluded(expense)}
                             className="scale-75 shrink-0"
                           />
+                          {expense.purchaseDate && (
+                            <span className="text-xs text-muted-foreground w-14 shrink-0">
+                              {new Date(expense.purchaseDate).toLocaleDateString("es-AR", { day: "2-digit", month: "short", timeZone: "UTC" })}
+                            </span>
+                          )}
                           <span className={`flex-1 truncate ${expense.isExcluded ? "line-through" : ""}`}>
                             {expense.description}
                           </span>

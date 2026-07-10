@@ -21,6 +21,7 @@ function isTaxLine(description: string): boolean {
 
 interface ParsedExpense {
   description: string;
+  purchaseDate: string | null; // "YYYY-MM-DD"
   installmentInfo: string | null;
   originalCurrency: string | null;
   originalAmount: number | null;
@@ -137,6 +138,25 @@ function extractOriginalCurrency(row: TextItem[]): { currency: string; amount: n
   return amount ? { currency: currencyItem.str, amount } : null;
 }
 
+// "DD.MM.YY" → "YYYY-MM-DD"
+function parseVisaDate(str: string): string | null {
+  const m = /^(\d{2})\.(\d{2})\.(\d{2})$/.exec(str);
+  return m ? `20${m[3]}-${m[2]}-${m[1]}` : null;
+}
+
+const MASTER_MONTHS: Record<string, string> = {
+  ene: "01", feb: "02", mar: "03", abr: "04", may: "05", jun: "06",
+  jul: "07", ago: "08", sep: "09", oct: "10", nov: "11", dic: "12",
+};
+
+// "DD-Mmm-YY" → "YYYY-MM-DD"
+function parseMasterDate(str: string): string | null {
+  const m = /^(\d{2})-([A-Za-z]{3})-(\d{2})/.exec(str);
+  if (!m) return null;
+  const month = MASTER_MONTHS[m[2].toLowerCase()];
+  return month ? `20${m[3]}-${month}-${m[1]}` : null;
+}
+
 // VISA: date format DD.MM.YY at x < 90
 function parseVisaExpenses(rows: TextItem[][]): ParsedExpense[] {
   const expenses: ParsedExpense[] = [];
@@ -180,6 +200,7 @@ function parseVisaExpenses(rows: TextItem[][]): ParsedExpense[] {
     const excluded = isTaxLine(description);
     expenses.push({
       description,
+      purchaseDate: parseVisaDate(dateItem.str),
       installmentInfo,
       originalCurrency: orig?.currency ?? null,
       originalAmount: orig?.amount ?? null,
@@ -220,6 +241,7 @@ function parseMasterExpenses(rows: TextItem[][]): ParsedExpense[] {
     const excluded = isTaxLine(description);
     expenses.push({
       description,
+      purchaseDate: parseMasterDate(mainItem.str),
       installmentInfo: null,
       originalCurrency: orig?.currency ?? null,
       originalAmount: orig?.amount ?? null,

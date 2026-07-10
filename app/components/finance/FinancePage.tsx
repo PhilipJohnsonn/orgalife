@@ -137,7 +137,7 @@ export function FinancePage() {
         </TabsContent>
 
         <TabsContent value="tarjetas">
-          <CardStatements statements={statements} onUpdate={load} />
+          <CardStatements statements={statements} exchangeRate={exchangeRate} onUpdate={load} />
         </TabsContent>
 
         <TabsContent value="deudas">

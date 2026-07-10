@@ -23,6 +23,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await prisma.cardStatement.delete({ where: { id } });
+  // Las transactions derivadas del resumen se van con él (la FK es SetNull, no cascade).
+  await prisma.$transaction([
+    prisma.transaction.deleteMany({ where: { cardExpense: { statementId: id } } }),
+    prisma.cardStatement.delete({ where: { id } }),
+  ]);
   return Response.json({ ok: true });
 }

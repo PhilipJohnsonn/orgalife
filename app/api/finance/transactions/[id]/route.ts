@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { type, description, amount, currency, amountUSD, date, isRecurring, method, accountId, categoryId } = await request.json();
+  const { type, description, amount, currency, amountUSD, date, isRecurring, method, cardName, accountId, categoryId } = await request.json();
 
   const transaction = await prisma.transaction.update({
     where: { id },
@@ -16,6 +16,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       ...(date !== undefined && { date: new Date(date) }),
       ...(isRecurring !== undefined && { isRecurring }),
       ...(method !== undefined && { method }),
+      ...(cardName !== undefined && { cardName: cardName || null }),
       ...(accountId !== undefined && { accountId: accountId || null }),
       ...(categoryId !== undefined && { categoryId: categoryId || null }),
     },

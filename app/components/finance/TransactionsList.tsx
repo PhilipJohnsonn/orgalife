@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Pencil, Trash2, Repeat } from "lucide-react";
 
 const CURRENCIES = ["ARS", "USD", "EUR", "UYU"];
+const CARD_NAMES = ["VISA", "MASTER", "AMEX"];
 
 const METHOD_LABELS: Record<Transaction["method"], string> = {
   CASH: "Efectivo",
@@ -34,6 +35,7 @@ interface FormState {
   currency: string;
   date: string;
   method: Transaction["method"];
+  cardName: string;
   accountId: string;
   categoryId: string;
   isRecurring: boolean;
@@ -47,6 +49,7 @@ function emptyForm(): FormState {
     currency: "ARS",
     date: new Date().toISOString().slice(0, 10),
     method: "CASH",
+    cardName: CARD_NAMES[0],
     accountId: "none",
     categoryId: "none",
     isRecurring: false,
@@ -73,6 +76,7 @@ export function TransactionsList({ transactions, accounts, categories, exchangeR
       currency: t.currency,
       date: t.date.slice(0, 10),
       method: t.method,
+      cardName: t.cardName ?? CARD_NAMES[0],
       accountId: t.accountId ?? "none",
       categoryId: t.categoryId ?? "none",
       isRecurring: t.isRecurring,
@@ -97,6 +101,7 @@ export function TransactionsList({ transactions, accounts, categories, exchangeR
       amountUSD,
       date: form.date,
       method: form.method,
+      cardName: form.method === "CREDIT" ? form.cardName : null,
       accountId: form.accountId === "none" ? null : form.accountId,
       categoryId: form.categoryId === "none" ? null : form.categoryId,
       isRecurring: form.isRecurring,
@@ -147,7 +152,9 @@ export function TransactionsList({ transactions, accounts, categories, exchangeR
             {t.account && (
               <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline">{t.account.name}</span>
             )}
-            <span className="text-xs text-muted-foreground shrink-0 hidden md:inline">{METHOD_LABELS[t.method]}</span>
+            <span className="text-xs text-muted-foreground shrink-0 hidden md:inline">
+              {METHOD_LABELS[t.method]}{t.method === "CREDIT" && t.cardName ? ` ${t.cardName}` : ""}
+            </span>
             <span className={`text-sm font-medium tabular-nums shrink-0 w-32 text-right ${t.type === "INCOME" ? "text-green-600 dark:text-green-500" : ""}`}>
               {t.type === "INCOME" ? "+" : "−"}{t.amount.toLocaleString("es-AR", { maximumFractionDigits: 2 })} {t.currency}
             </span>
@@ -250,6 +257,27 @@ export function TransactionsList({ transactions, accounts, categories, exchangeR
                 </Select>
               </div>
             </div>
+
+            {form.method === "CREDIT" && (
+              <div className="space-y-1">
+                <Label className="text-xs">Tarjeta</Label>
+                <div className="flex gap-1">
+                  {CARD_NAMES.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setForm({ ...form, cardName: c })}
+                      className={`px-2 py-1 rounded-full text-xs border transition-colors ${form.cardName === c ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-foreground"}`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Al importar el resumen de esta tarjeta, las cargadas a mano se reemplazan por las del PDF.
+                </p>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">

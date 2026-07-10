@@ -100,6 +100,7 @@ model CardExpense {
   id               String        @id @default(cuid())
   statementId      String
   description      String
+  purchaseDate     DateTime?
   installmentInfo  String?
   originalCurrency String?
   originalAmount   Float?
@@ -141,6 +142,7 @@ model Transaction {
   date          DateTime
   isRecurring   Boolean           @default(false)
   method        PaymentMethod     @default(CASH)
+  cardName      String?
   accountId     String?
   categoryId    String?
   cardExpenseId String?           @unique
