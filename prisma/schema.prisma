@@ -61,3 +61,92 @@ model Tag {
   color String @default("#6B7280")
   tasks Task[]
 }
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum PaymentMethod {
+  CASH
+  DEBIT
+  CREDIT
+  TRANSFER
+}
+
+model FinancialAccount {
+  id           String        @id @default(cuid())
+  name         String
+  currencies   String[]
+  color        String        @default("#6B7280")
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+}
+
+model CardStatement {
+  id        String        @id @default(cuid())
+  cardName  String
+  amountUSD Float?
+  amountARS Float?
+  dueDate   DateTime?
+  isPaid    Boolean       @default(false)
+  rawText   String?       @db.Text
+  createdAt DateTime      @default(now())
+  expenses  CardExpense[]
+}
+
+model CardExpense {
+  id               String        @id @default(cuid())
+  statementId      String
+  description      String
+  installmentInfo  String?
+  originalCurrency String?
+  originalAmount   Float?
+  amountARS        Float?
+  amountUSD        Float?
+  isExcluded       Boolean       @default(false)
+  excludeReason    String?
+  statement        CardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  transaction      Transaction?
+}
+
+model Debt {
+  id          String    @id @default(cuid())
+  description String
+  creditor    String?
+  amountUSD   Float?
+  amountARS   Float?
+  isIncluded  Boolean   @default(true)
+  isPaid      Boolean   @default(false)
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model Category {
+  id           String        @id @default(cuid())
+  name         String
+  color        String        @default("#6B7280")
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+}
+
+model Transaction {
+  id            String            @id @default(cuid())
+  type          TransactionType
+  description   String
+  amount        Float
+  currency      String
+  amountUSD     Float?
+  date          DateTime
+  isRecurring   Boolean           @default(false)
+  method        PaymentMethod     @default(CASH)
+  accountId     String?
+  categoryId    String?
+  cardExpenseId String?           @unique
+  account       FinancialAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  category      Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  cardExpense   CardExpense?      @relation(fields: [cardExpenseId], references: [id], onDelete: SetNull)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}
