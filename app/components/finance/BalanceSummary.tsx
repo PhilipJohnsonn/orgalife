@@ -16,7 +16,7 @@ interface GroupTotals {
   expense: number;
 }
 
-function usdValue(t: Transaction, exchangeRate: number): number | null {
+export function usdValue(t: Transaction, exchangeRate: number): number | null {
   if (t.amountUSD != null) return t.amountUSD;
   if (t.currency === "ARS" && exchangeRate > 0) return t.amount / exchangeRate;
   return null;

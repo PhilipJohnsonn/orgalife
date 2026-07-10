@@ -12,6 +12,7 @@
 | Drag & Drop | **@hello-pangea/dnd** | - |
 | Íconos | **lucide-react** | - |
 | PDF parsing | **pdfjs-dist/legacy** | - |
+| Gráficos | **recharts** | 3.9 |
 
 **Nota Prisma 7:** Requiere `@prisma/adapter-pg`. No acepta `new PrismaClient()` vacío.
 
@@ -45,7 +46,7 @@
 - [x] Deploy en VPS via GitHub Actions (push main → build → restart)
 - [x] Scripts `pull-db-from-prod` / `push-db-to-prod`
 
-### Finanzas (`/finanzas`) — Rediseño completado hasta paso 5
+### Finanzas (`/finanzas`) — Rediseño completado (pasos 1–6)
 
 **Modelo mental:** sin períodos fijos, todo en `Transaction`, categorías del usuario, multi-moneda.
 
@@ -86,13 +87,14 @@
   - Filtro por rango de fechas: presets (Este mes / Mes pasado / Este año / Todo) + inputs from/to custom (editar un input deselecciona el preset). Filtrado client-side (los datos ya se cargan completos en `FinancePage.load()`)
   - `BalanceSummary`: ingresos/gastos/neto por cuenta+moneda (transacciones sin cuenta → "Sin cuenta") + fila Total en USD (`amountUSD` ?? ARS/TC del header; otras monedas sin `amountUSD` quedan fuera con nota "N sin conversión")
   - Transacciones importadas de tarjeta (`cardExpenseId != null`): badge con ícono + cardName, **solo lectura** (sin edit/delete — se gestionan desde la tab Tarjetas para no romper el sync con el statement). Las CREDIT manuales siguen editables
+- [x] **Paso 6:** Gráficos (`FinanceCharts`, recharts) — en la tab Transacciones, debajo del Balance, sobre el mismo array filtrado por rango de fechas:
+  - **Ingresos vs Gastos (USD):** barras agrupadas por mes (verde/rojo, par validado para daltonismo), meses vacíos entre el primero y el último se rellenan con cero. Tooltip con ambos valores, leyenda propia
+  - **Gastos por categoría (USD):** barras horizontales orden desc, color = color de la categoría (sin categoría → gris), valor al final de cada barra, tooltip con % del total. Más de 8 categorías → cola agrupada en "Otras"
+  - Conversión a USD igual que BalanceSummary (`usdValue` exportada de ahí): `amountUSD` ?? ARS/TC; otras monedas sin conversión quedan fuera con nota
 
 ---
 
 ## Pendiente
-
-### Finanzas — plan de ejecución (continuar desde paso 6)
-- [ ] **Paso 6:** Gráficos (ingresos vs gastos, por categoría)
 
 ### Otros
 - [ ] Reordenamiento de tareas dentro de la misma columna

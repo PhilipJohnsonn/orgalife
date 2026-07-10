@@ -25,6 +25,7 @@
     "react-day-picker": "^9.14.0",
     "react-dom": "19.2.4",
     "react-markdown": "^10.1.0",
+    "recharts": "^3.9.2",
     "remark-gfm": "^4.0.1",
     "shadcn": "^4.3.0",
     "tailwind-merge": "^3.5.0",

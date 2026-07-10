@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Transaction, FinancialAccount, Category } from "./types";
 import { BalanceSummary } from "./BalanceSummary";
+import { FinanceCharts } from "./FinanceCharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -205,6 +206,8 @@ export function TransactionsList({ transactions, accounts, categories, exchangeR
       </div>
 
       <BalanceSummary transactions={filtered} exchangeRate={exchangeRate} />
+
+      <FinanceCharts transactions={filtered} exchangeRate={exchangeRate} />
 
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-3">
