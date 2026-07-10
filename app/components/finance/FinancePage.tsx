@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { FinancialAccount, Debt, Category, CardStatement } from "./types";
+import { FinancialAccount, Debt, Category, CardStatement, Transaction } from "./types";
 import { CategoriesList } from "./CategoriesList";
+import { TransactionsList } from "./TransactionsList";
 import { CardStatements } from "./CardStatements";
 import { DebtsList } from "./DebtsList";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,6 +20,7 @@ export function FinancePage() {
   const [debts, setDebts] = useState<Debt[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [statements, setStatements] = useState<CardStatement[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [exchangeRate, setExchangeRate] = useState(() => {
     if (typeof window !== "undefined") {
       return parseFloat(localStorage.getItem("finance_tc") ?? "") || 1300;
@@ -36,22 +38,25 @@ export function FinancePage() {
   const [newAccountForm, setNewAccountForm] = useState({ name: "", currencies: ["USD"] as string[], color: ACCOUNT_COLORS[0] });
 
   const load = useCallback(async () => {
-    const [accountsRes, debtsRes, categoriesRes, statementsRes] = await Promise.all([
+    const [accountsRes, debtsRes, categoriesRes, statementsRes, transactionsRes] = await Promise.all([
       fetch("/api/finance/accounts"),
       fetch("/api/finance/debts"),
       fetch("/api/finance/categories"),
       fetch("/api/finance/statements"),
+      fetch("/api/finance/transactions"),
     ]);
-    const [accountsData, debtsData, categoriesData, statementsData] = await Promise.all([
+    const [accountsData, debtsData, categoriesData, statementsData, transactionsData] = await Promise.all([
       accountsRes.ok ? accountsRes.json() : [],
       debtsRes.ok ? debtsRes.json() : [],
       categoriesRes.ok ? categoriesRes.json() : [],
       statementsRes.ok ? statementsRes.json() : [],
+      transactionsRes.ok ? transactionsRes.json() : [],
     ]);
     setAccounts(accountsData);
     setDebts(debtsData);
     setCategories(categoriesData);
     setStatements(statementsData);
+    setTransactions(transactionsData);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -122,9 +127,13 @@ export function FinancePage() {
         </TabsContent>
 
         <TabsContent value="transacciones">
-          <div className="flex items-center justify-center h-40 text-muted-foreground text-sm border rounded-lg">
-            Próximamente — paso 3 del plan
-          </div>
+          <TransactionsList
+            transactions={transactions}
+            accounts={accounts}
+            categories={categories}
+            exchangeRate={exchangeRate}
+            onUpdate={load}
+          />
         </TabsContent>
 
         <TabsContent value="tarjetas">

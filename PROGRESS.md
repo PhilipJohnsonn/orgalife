@@ -41,10 +41,11 @@
 ### Infraestructura
 - [x] Dark mode (localStorage)
 - [x] MCP Server (18 tools, CRUD completo via REST)
+- [x] Auth simple: `proxy.ts` protege todo — cookie de sesión (login con `AUTH_PASSWORD`) o header `Authorization: Bearer $MCP_API_KEY` (para API/MCP/curl)
 - [x] Deploy en VPS via GitHub Actions (push main → build → restart)
 - [x] Scripts `pull-db-from-prod` / `push-db-to-prod`
 
-### Finanzas (`/finanzas`) — Rediseño completado hasta paso 2
+### Finanzas (`/finanzas`) — Rediseño completado hasta paso 3
 
 **Modelo mental:** sin períodos fijos, todo en `Transaction`, categorías del usuario, multi-moneda.
 
@@ -61,6 +62,7 @@
 - [x] `/api/finance/statements` — CRUD + upload PDF (sin periodId)
 - [x] `/api/finance/expenses/[id]` — PATCH para toggle excluido
 - [x] `/api/finance/debts` — CRUD
+- [x] `/api/finance/transactions` — CRUD (GET incluye `account` y `category`, orden `date desc`)
 
 #### UI
 - [x] `FinancePage` rediseñada: tabs Categorías / Transacciones / Tarjetas / Deudas
@@ -71,13 +73,13 @@
 - [x] Cuentas: dialog con chips multi-moneda seleccionables
 - [x] Tarjetas: upload PDF → preview expenses → toggle excluidos → confirmar y guardar
 - [x] PDF parser (pdfjs-dist) — soporta ICBC VISA y ICBC MASTER, extrae moneda original
+- [x] **Paso 3:** `TransactionsList` — form dialog (tipo, descripción, monto, moneda, fecha, método, cuenta, categoría, recurrente) + lista con edit/delete. `amountUSD` se calcula client-side con el TC (USD directo, ARS/TC, otras monedas → null)
 
 ---
 
 ## Pendiente
 
-### Finanzas — plan de ejecución (continuar desde paso 3)
-- [ ] **Paso 3:** Transacciones manuales — form para cargar gasto/ingreso (tipo, descripción, monto, moneda, fecha, método, cuenta, categoría, recurrente)
+### Finanzas — plan de ejecución (continuar desde paso 4)
 - [ ] **Paso 4:** PDF import → crear `Transaction` por cada `CardExpense` confirmado (link via `cardExpenseId`)
 - [ ] **Paso 5:** Vista principal — lista de transacciones con filtro por rango de fechas + resumen de balance por cuenta/moneda
 - [ ] **Paso 6:** Gráficos (ingresos vs gastos, por categoría)
@@ -92,7 +94,6 @@
 ## v2 — Ideas futuras
 
 - [ ] AI: "Generar plan de acción" por tarea
-- [ ] Auth simple
 - [ ] Adjuntos por tarea
 - [ ] MCP: tool de búsqueda/filtro de tareas
 - [ ] Integración con calendarios externos
