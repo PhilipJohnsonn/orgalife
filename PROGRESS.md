@@ -45,7 +45,7 @@
 - [x] Deploy en VPS via GitHub Actions (push main → build → restart)
 - [x] Scripts `pull-db-from-prod` / `push-db-to-prod`
 
-### Finanzas (`/finanzas`) — Rediseño completado hasta paso 4
+### Finanzas (`/finanzas`) — Rediseño completado hasta paso 5
 
 **Modelo mental:** sin períodos fijos, todo en `Transaction`, categorías del usuario, multi-moneda.
 
@@ -82,13 +82,16 @@
   - Sync total: borrar resumen → borra sus transacciones; excluir expense → borra la suya; re-incluir → la recrea
   - Lógica compartida en `app/lib/finance.ts` (`buildTransactionData`)
   - Limitación conocida: hay PDFs de MASTER con otro layout que el parser no reconoce (0 ítems) — pre-existente
+- [x] **Paso 5:** Vista principal — la tab Transacciones absorbe el rol (ahora primera y default):
+  - Filtro por rango de fechas: presets (Este mes / Mes pasado / Este año / Todo) + inputs from/to custom (editar un input deselecciona el preset). Filtrado client-side (los datos ya se cargan completos en `FinancePage.load()`)
+  - `BalanceSummary`: ingresos/gastos/neto por cuenta+moneda (transacciones sin cuenta → "Sin cuenta") + fila Total en USD (`amountUSD` ?? ARS/TC del header; otras monedas sin `amountUSD` quedan fuera con nota "N sin conversión")
+  - Transacciones importadas de tarjeta (`cardExpenseId != null`): badge con ícono + cardName, **solo lectura** (sin edit/delete — se gestionan desde la tab Tarjetas para no romper el sync con el statement). Las CREDIT manuales siguen editables
 
 ---
 
 ## Pendiente
 
-### Finanzas — plan de ejecución (continuar desde paso 5)
-- [ ] **Paso 5:** Vista principal — lista de transacciones con filtro por rango de fechas + resumen de balance por cuenta/moneda
+### Finanzas — plan de ejecución (continuar desde paso 6)
 - [ ] **Paso 6:** Gráficos (ingresos vs gastos, por categoría)
 
 ### Otros

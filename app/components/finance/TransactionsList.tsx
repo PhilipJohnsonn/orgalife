@@ -2,16 +2,50 @@
 
 import { useState } from "react";
 import { Transaction, FinancialAccount, Category } from "./types";
+import { BalanceSummary } from "./BalanceSummary";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Repeat } from "lucide-react";
+import { Plus, Pencil, Trash2, Repeat, CreditCard } from "lucide-react";
 
 const CURRENCIES = ["ARS", "USD", "EUR", "UYU"];
 const CARD_NAMES = ["VISA", "MASTER", "AMEX"];
+
+type PresetKey = "this-month" | "last-month" | "this-year" | "all";
+
+const PRESETS: { key: PresetKey; label: string }[] = [
+  { key: "this-month", label: "Este mes" },
+  { key: "last-month", label: "Mes pasado" },
+  { key: "this-year", label: "Este año" },
+  { key: "all", label: "Todo" },
+];
+
+function toYMD(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function presetRange(preset: PresetKey): { from: string; to: string } {
+  const now = new Date();
+  switch (preset) {
+    case "this-month":
+      return {
+        from: toYMD(new Date(now.getFullYear(), now.getMonth(), 1)),
+        to: toYMD(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+      };
+    case "last-month":
+      return {
+        from: toYMD(new Date(now.getFullYear(), now.getMonth() - 1, 1)),
+        to: toYMD(new Date(now.getFullYear(), now.getMonth(), 0)),
+      };
+    case "this-year":
+      return { from: `${now.getFullYear()}-01-01`, to: `${now.getFullYear()}-12-31` };
+    case "all":
+      return { from: "", to: "" };
+  }
+}
 
 const METHOD_LABELS: Record<Transaction["method"], string> = {
   CASH: "Efectivo",
@@ -60,6 +94,25 @@ export function TransactionsList({ transactions, accounts, categories, exchangeR
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm());
+  const [preset, setPreset] = useState<PresetKey | null>("this-month");
+  const [range, setRange] = useState(() => presetRange("this-month"));
+
+  function applyPreset(key: PresetKey) {
+    setPreset(key);
+    setRange(presetRange(key));
+  }
+
+  function setRangeField(field: "from" | "to", value: string) {
+    setPreset(null);
+    setRange((r) => ({ ...r, [field]: value }));
+  }
+
+  const filtered = transactions.filter((t) => {
+    const d = t.date.slice(0, 10);
+    if (range.from && d < range.from) return false;
+    if (range.to && d > range.to) return false;
+    return true;
+  });
 
   function openNew() {
     setEditingId(null);
@@ -122,6 +175,37 @@ export function TransactionsList({ transactions, accounts, categories, exchangeR
   }
 
   return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 flex-wrap">
+        {PRESETS.map((p) => (
+          <button
+            key={p.key}
+            type="button"
+            onClick={() => applyPreset(p.key)}
+            className={`px-2.5 py-0.5 rounded-full text-xs border transition-colors ${preset === p.key ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-foreground"}`}
+          >
+            {p.label}
+          </button>
+        ))}
+        <div className="flex items-center gap-1.5 ml-auto">
+          <Input
+            type="date"
+            value={range.from}
+            onChange={(e) => setRangeField("from", e.target.value)}
+            className="h-8 w-36 text-sm"
+          />
+          <span className="text-xs text-muted-foreground">→</span>
+          <Input
+            type="date"
+            value={range.to}
+            onChange={(e) => setRangeField("to", e.target.value)}
+            className="h-8 w-36 text-sm"
+          />
+        </div>
+      </div>
+
+      <BalanceSummary transactions={filtered} exchangeRate={exchangeRate} />
+
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="text-base">Transacciones</CardTitle>
@@ -130,11 +214,11 @@ export function TransactionsList({ transactions, accounts, categories, exchangeR
         </Button>
       </CardHeader>
       <CardContent className="space-y-1">
-        {transactions.length === 0 && (
-          <p className="text-sm text-muted-foreground text-center py-4">Sin transacciones. Agregá un gasto o ingreso.</p>
+        {filtered.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-4">Sin transacciones en este rango.</p>
         )}
 
-        {transactions.map((t) => (
+        {filtered.map((t) => (
           <div key={t.id} className="flex items-center gap-2 p-2 hover:bg-muted/40 rounded-md group">
             <span className="text-xs text-muted-foreground w-20 shrink-0">
               {new Date(t.date).toLocaleDateString("es-AR", { day: "2-digit", month: "short", timeZone: "UTC" })}
@@ -143,6 +227,12 @@ export function TransactionsList({ transactions, accounts, categories, exchangeR
               {t.description}
               {t.isRecurring && <Repeat className="inline h-3 w-3 ml-1.5 text-muted-foreground" />}
             </span>
+            {t.cardExpenseId && (
+              <span className="flex items-center gap-1 text-xs bg-muted text-muted-foreground rounded-full px-2 py-0.5 shrink-0">
+                <CreditCard className="h-3 w-3" />
+                {t.cardName}
+              </span>
+            )}
             {t.category && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
                 <span className="w-2 h-2 rounded-full" style={{ backgroundColor: t.category.color }} />
@@ -152,24 +242,37 @@ export function TransactionsList({ transactions, accounts, categories, exchangeR
             {t.account && (
               <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline">{t.account.name}</span>
             )}
-            <span className="text-xs text-muted-foreground shrink-0 hidden md:inline">
-              {METHOD_LABELS[t.method]}{t.method === "CREDIT" && t.cardName ? ` ${t.cardName}` : ""}
-            </span>
+            {!t.cardExpenseId && (
+              <span className="text-xs text-muted-foreground shrink-0 hidden md:inline">
+                {METHOD_LABELS[t.method]}{t.method === "CREDIT" && t.cardName ? ` ${t.cardName}` : ""}
+              </span>
+            )}
             <span className={`text-sm font-medium tabular-nums shrink-0 w-32 text-right ${t.type === "INCOME" ? "text-green-600 dark:text-green-500" : ""}`}>
               {t.type === "INCOME" ? "+" : "−"}{t.amount.toLocaleString("es-AR", { maximumFractionDigits: 2 })} {t.currency}
             </span>
-            <button
-              onClick={() => openEdit(t)}
-              className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
-            <button
-              onClick={() => deleteTransaction(t.id)}
-              className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            <div className="flex items-center gap-2 w-9 shrink-0 justify-end">
+              {t.cardExpenseId ? (
+                <CreditCard
+                  className="h-3.5 w-3.5 text-muted-foreground/50"
+                  aria-label="Importada del resumen de tarjeta — se gestiona desde la tab Tarjetas"
+                />
+              ) : (
+                <>
+                  <button
+                    onClick={() => openEdit(t)}
+                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => deleteTransaction(t.id)}
+                    className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         ))}
       </CardContent>
@@ -328,5 +431,6 @@ export function TransactionsList({ transactions, accounts, categories, exchangeR
         </DialogContent>
       </Dialog>
     </Card>
+    </div>
   );
 }

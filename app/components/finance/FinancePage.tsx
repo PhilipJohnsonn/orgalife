@@ -107,10 +107,10 @@ export function FinancePage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="categorias" className="flex-1">
+      <Tabs defaultValue="transacciones" className="flex-1">
         <TabsList className="mb-4">
-          <TabsTrigger value="categorias">Categorías</TabsTrigger>
           <TabsTrigger value="transacciones">Transacciones</TabsTrigger>
+          <TabsTrigger value="categorias">Categorías</TabsTrigger>
           <TabsTrigger value="tarjetas">
             Tarjetas
             {statements.length > 0 && (
@@ -122,10 +122,6 @@ export function FinancePage() {
           <TabsTrigger value="deudas">Deudas</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="categorias">
-          <CategoriesList categories={categories} onUpdate={load} />
-        </TabsContent>
-
         <TabsContent value="transacciones">
           <TransactionsList
             transactions={transactions}
@@ -134,6 +130,10 @@ export function FinancePage() {
             exchangeRate={exchangeRate}
             onUpdate={load}
           />
+        </TabsContent>
+
+        <TabsContent value="categorias">
+          <CategoriesList categories={categories} onUpdate={load} />
         </TabsContent>
 
         <TabsContent value="tarjetas">
