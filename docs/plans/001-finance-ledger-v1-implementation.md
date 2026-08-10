@@ -186,9 +186,11 @@ Cada tarea tiene una salida observable y una verificación. Una tarea se marca c
 
 ### E2-03 — Accounts y opening balances
 
+- **Estado:** Complete — commit `5943a37`, CI `31385621161`
 - Tracking `TRANSACTIONAL`/`DECLARED`.
 - Opening y adjustment contra equity.
 - **Verificación:** reconstrucción completa produce el mismo saldo; adjustments no alteran flujo.
+- **Evidencia:** servicios transaccionales para grupos/cuentas, opening y ajustes; cuentas equity técnicas por rol/moneda; read model nativo derivado exclusivamente de postings; 26 unit tests, migración y build verdes.
 
 ### E2-04 — Ingreso y gasto
 
