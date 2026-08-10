@@ -1,7 +1,7 @@
 # Implementation Plan 001: OrgaLife Finance Ledger v1
 
 - **RFC:** [RFC 001](../rfcs/001-finance-ledger-v1.md)
-- **Estado:** Etapa 0 complete — listo para iniciar Etapa 1
+- **Estado:** Etapa 3 complete — Etapa 4 en ejecución
 - **Rama de trabajo:** `finanzas`
 - **Producción:** no desplegar hasta completar Etapa 7 y el gate de Etapa 8
 - **Datos financieros actuales:** descartables sólo mediante el reset operativo aprobado
@@ -16,9 +16,9 @@ Cada tarea tiene una salida observable y una verificación. Una tarea se marca c
 | Etapa | Estado | Gate de salida |
 |---|---|---|
 | 0. Contratos y seguridad operativa | Complete | CI bloqueante, backup ensayado, fixtures definidos y spikes registrados |
-| 1. Auth y boundary | Pending | sesiones opacas + auth negativa + bearer MCP aislado |
-| 2. Ledger y cuentas | In progress | invariantes contables + saldos reconstruibles |
-| 3. Transferencias y FX | Pending | siete movimientos argentinos + consolidación estable |
+| 1. Auth y boundary | Complete con Plan B | sesiones opacas + auth negativa + bearer MCP aislado |
+| 2. Ledger y cuentas | Complete | invariantes contables + saldos reconstruibles |
+| 3. Transferencias y FX | Complete | siete movimientos argentinos + consolidación estable |
 | 4. ICBC Visa | Pending | import, conciliación, impuestos, reversión e idempotencia |
 | 5. Tarjeta y proyección | Pending | pago/reasignación sin duplicados |
 | 6. Obligaciones y compromisos | Pending | parciales + suscripciones sin postings |
@@ -194,35 +194,42 @@ Cada tarea tiene una salida observable y una verificación. Una tarea se marca c
 
 ### E2-04 — Ingreso y gasto
 
-- **Estado:** In progress — API/servicio completos en `960c82b`; UI pendiente
+- **Estado:** Complete — commit `3c4660b`, CI `31388567984`
 - Servicios, API y UI mínima.
 - **Verificación:** banco/expense/income cuadran y errores mantienen formularios abiertos.
-- **Evidencia parcial:** `/api/finance/v1/transactions` usa importes string, fecha civil, UUID de idempotencia, validación runtime y postings balanceados; 28 unit tests y CI `31386494618` verdes.
-- **Pendiente:** onboarding/formulario/listado v1 y QA de navegador con el MCP directo de Playwright.
+- **Evidencia:** `/api/finance/v1/transactions` usa importes string, fecha civil, UUID de idempotencia, validación runtime y postings balanceados; onboarding, formularios y listado v1 verificados con Playwright en desktop y mobile. Los errores mantienen el formulario abierto y los movimientos persisten al recargar.
 
 ## Etapa 3 — Transferencias, FX y consolidación
 
 ### E3-01 — Transferencias misma moneda
 
+- **Estado:** Complete — commit `85d929c`, CI `31393282286`
 - Origen/destino, negativos advertidos y auditables.
 - **Verificación:** no afectan ingresos/gastos.
+- **Evidencia:** transferencia ICBC ARS → Mercado Pago preservó el flujo; el warning de saldo negativo requirió una segunda confirmación y la idempotencia concurrente creó un único entry.
 
 ### E3-02 — Conversión FX
 
+- **Estado:** Complete — commit `85d929c`, CI `31393282286`
 - Dos importes reales, rate efectivo y clearing por moneda.
 - **Verificación:** no afecta flujo; cuentas clearing no aparecen como dinero.
+- **Evidencia:** conversión ARS → USD persistió ambos importes y el rate efectivo; el ledger quedó balanceado por moneda y las cuentas técnicas quedaron fuera de la posición líquida.
 
 ### E3-03 — Cotizaciones
 
+- **Estado:** Complete — commit `85d929c`, CI `31393282286`
 - Open Exchange Rates lazy, timeout/caché y override manual.
 - USD pivote, snapshot/triangulación y datos incompletos visibles.
 - **Verificación:** tasa efectiva de transacción nunca cambia por refresh automático.
+- **Evidencia:** contrato Open Exchange Rates cubierto por tests, snapshots manuales ARS y AUD verificados, fallback visible sin credencial y referencias inmutables desde cada entry FX.
 
 ### E3-04 — Read models regionales
 
+- **Estado:** Complete — commit `85d929c`, CI `31393282286`
 - Argentina/Australia/Global.
 - Posiciones confirmada/proyectada; cuentas declaradas con antigüedad.
 - **Verificación:** cambiar USD→AUD modifica sólo la valuación.
+- **Evidencia:** Playwright validó vistas regionales, cambio de base USD → AUD, movimientos y layout mobile sin overflow. El cambio de base modificó sólo la consolidación; postings y flujo permanecieron iguales.
 
 ## Etapa 4 — ICBC Visa
 
