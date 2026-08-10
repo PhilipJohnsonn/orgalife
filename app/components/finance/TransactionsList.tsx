@@ -94,6 +94,7 @@ function emptyForm(): FormState {
 export function TransactionsList({ transactions, accounts, categories, exchangeRate, onUpdate }: Props) {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm());
   const [preset, setPreset] = useState<PresetKey | null>("this-month");
   const [range, setRange] = useState(() => presetRange("this-month"));
@@ -139,6 +140,7 @@ export function TransactionsList({ transactions, accounts, categories, exchangeR
   }
 
   async function save() {
+    if (saving) return;
     const amount = parseFloat(form.amount);
     if (!form.description.trim() || isNaN(amount) || amount <= 0) return;
 
@@ -161,13 +163,21 @@ export function TransactionsList({ transactions, accounts, categories, exchangeR
       isRecurring: form.isRecurring,
     };
 
-    await fetch(editingId ? `/api/finance/transactions/${editingId}` : "/api/finance/transactions", {
-      method: editingId ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    setOpen(false);
-    onUpdate();
+    setSaving(true);
+    try {
+      const response = await fetch(editingId ? `/api/finance/transactions/${editingId}` : "/api/finance/transactions", {
+        method: editingId ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error();
+      setOpen(false);
+      onUpdate();
+    } catch {
+      alert("No se pudo guardar la transacción. Intentá nuevamente.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function deleteTransaction(id: string) {
@@ -428,7 +438,9 @@ export function TransactionsList({ transactions, accounts, categories, exchangeR
 
             <div className="flex gap-2 justify-end pt-1">
               <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-              <Button size="sm" onClick={save}>Guardar</Button>
+              <Button size="sm" onClick={save} disabled={saving}>
+                {saving ? "Guardando..." : "Guardar"}
+              </Button>
             </div>
           </div>
         </DialogContent>

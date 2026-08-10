@@ -9,7 +9,7 @@ import { Column, type ColumnData } from "./Column";
 import { TaskDetail } from "../task/TaskDetail";
 import { CreateTaskDialog } from "../task/CreateTaskDialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Clock, Archive } from "lucide-react";
+import { Plus, Clock } from "lucide-react";
 import type { TaskData } from "./TaskCard";
 
 type Tag = {
@@ -56,6 +56,8 @@ export function Board() {
   }, []);
 
   useEffect(() => {
+    // These loaders update state only after their network requests resolve.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchBoard();
     fetchTags();
   }, [fetchBoard, fetchTags]);

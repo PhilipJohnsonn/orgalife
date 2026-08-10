@@ -12,6 +12,12 @@
 
 # testing
 /coverage
+/tests/fixtures/finance/icbc-visa/private/
+
+# database backups
+*.dump
+*.dump.sha256
+*.dump.manifest
 
 # next.js
 /.next/

@@ -1,0 +1,25 @@
+{
+  "parser": "ICBC_VISA",
+  "parserVersion": 1,
+  "case": "consecutive-tax-credit-01",
+  "statement": {
+    "closingOn": "2026-01-31",
+    "dueOn": "2026-02-10",
+    "totals": [
+      { "currency": "ARS", "previousBalance": "0.00", "paymentsAndCredits": "0.00", "newCharges": "135.00", "reportedTotal": "135.00", "eligibleExclusions": "30.00", "payableTotal": "105.00", "residual": "0.00" },
+      { "currency": "USD", "previousBalance": "0.00", "paymentsAndCredits": "0.00", "newCharges": "30.00", "reportedTotal": "30.00", "eligibleExclusions": "0.00", "payableTotal": "30.00", "residual": "0.00" }
+    ],
+    "lines": [
+      { "sourceLine": "p1:y496", "purchaseOn": "2026-01-15", "billedOn": "2026-01-31", "description": "COMERCIO ARS EJEMPLO", "classification": "PURCHASE", "paymentTreatment": "PAYABLE", "billedCurrency": "ARS", "billedAmount": "100.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null },
+      { "sourceLine": "p1:y488", "purchaseOn": "2026-01-20", "billedOn": "2026-01-31", "description": "COMERCIO EXTERIOR EJEMPLO", "classification": "PURCHASE", "paymentTreatment": "PAYABLE", "billedCurrency": "USD", "billedAmount": "10.00", "originalCurrency": "THB", "originalAmount": "350.00", "installmentInfo": null },
+      { "sourceLine": "p2:y730", "purchaseOn": "2026-01-25", "billedOn": "2026-01-31", "description": "SERVICIO USD EJEMPLO", "classification": "PURCHASE", "paymentTreatment": "PAYABLE", "billedCurrency": "USD", "billedAmount": "20.00", "originalCurrency": "USD", "originalAmount": "20.00", "installmentInfo": null },
+      { "sourceLine": "p2:y683", "purchaseOn": null, "billedOn": "2026-01-31", "description": "IMPUESTO DE SELLOS", "classification": "PAYABLE_TAX", "paymentTreatment": "PAYABLE", "billedCurrency": "ARS", "billedAmount": "5.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null },
+      { "sourceLine": "p2:y667", "purchaseOn": null, "billedOn": "2026-01-31", "description": "DB.RG 5617 30% (100,00)", "classification": "ELIGIBLE_USD_TAX", "paymentTreatment": "EXCLUDED_FROM_PAYMENT", "billedCurrency": "ARS", "billedAmount": "30.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null }
+    ],
+    "taxExclusions": [
+      { "key": "tax-cycle-01", "amount": "30.00", "currency": "ARS", "status": "PENDING_CONFIRMATION", "resolution": null }
+    ],
+    "ignoredPages": [3, 4],
+    "status": "BALANCED"
+  }
+}

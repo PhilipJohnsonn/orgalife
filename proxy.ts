@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac } from "crypto";
+import { createSessionToken } from "@/app/lib/auth";
 
 const COOKIE_NAME = "orgalife-session";
-
-function expectedToken(): string {
-  const password = process.env.AUTH_PASSWORD ?? "";
-  const secret = process.env.AUTH_SECRET ?? "";
-  return createHmac("sha256", secret).update(password).digest("hex");
-}
 
 function expectedApiKey(): string {
   return process.env.MCP_API_KEY ?? "";
@@ -15,7 +9,11 @@ function expectedApiKey(): string {
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get(COOKIE_NAME)?.value;
-  if (token === expectedToken()) return NextResponse.next();
+  const expectedToken = createSessionToken(
+    process.env.AUTH_PASSWORD,
+    process.env.AUTH_SECRET
+  );
+  if (expectedToken && token === expectedToken) return NextResponse.next();
 
   const apiKey = expectedApiKey();
   const authHeader = request.headers.get("authorization");

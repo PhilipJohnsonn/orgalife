@@ -1,0 +1,33 @@
+{
+  "parser": "ICBC_VISA",
+  "parserVersion": 1,
+  "case": "consecutive-tax-credit-02",
+  "statement": {
+    "closingOn": "2026-02-28",
+    "dueOn": "2026-03-10",
+    "totals": [
+      { "currency": "ARS", "previousBalance": "135.00", "paymentsAndCredits": "-135.00", "newCharges": "255.00", "reportedTotal": "255.00", "eligibleExclusions": "45.00", "payableTotal": "210.00", "residual": "0.00" },
+      { "currency": "USD", "previousBalance": "30.00", "paymentsAndCredits": "-30.00", "newCharges": "50.00", "reportedTotal": "50.00", "eligibleExclusions": "0.00", "payableTotal": "50.00", "residual": "0.00" }
+    ],
+    "lines": [
+      { "sourceLine": "p1:y530:ARS", "purchaseOn": null, "billedOn": "2026-02-28", "description": "SALDO ANTERIOR", "classification": "PREVIOUS_BALANCE", "paymentTreatment": "INFORMATIONAL", "billedCurrency": "ARS", "billedAmount": "135.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null },
+      { "sourceLine": "p1:y530:USD", "purchaseOn": null, "billedOn": "2026-02-28", "description": "SALDO ANTERIOR", "classification": "PREVIOUS_BALANCE", "paymentTreatment": "INFORMATIONAL", "billedCurrency": "USD", "billedAmount": "30.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null },
+      { "sourceLine": "p1:y522", "purchaseOn": null, "billedOn": "2026-02-28", "description": "DEV.IMP. RG 5617 30% (100,00)", "classification": "PAYMENT_OR_CREDIT", "paymentTreatment": "INFORMATIONAL", "billedCurrency": "ARS", "billedAmount": "-30.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null, "resolvesTaxExclusion": "tax-cycle-01" },
+      { "sourceLine": "p1:y514", "purchaseOn": null, "billedOn": "2026-02-28", "description": "SU PAGO EN PESOS", "classification": "PAYMENT_OR_CREDIT", "paymentTreatment": "INFORMATIONAL", "billedCurrency": "ARS", "billedAmount": "-105.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null },
+      { "sourceLine": "p1:y506", "purchaseOn": null, "billedOn": "2026-02-28", "description": "SU PAGO EN USD", "classification": "PAYMENT_OR_CREDIT", "paymentTreatment": "INFORMATIONAL", "billedCurrency": "USD", "billedAmount": "-30.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null },
+      { "sourceLine": "p1:y496", "purchaseOn": "2026-02-10", "billedOn": "2026-02-28", "description": "COMPRA LOCAL EJEMPLO", "classification": "PURCHASE", "paymentTreatment": "PAYABLE", "billedCurrency": "ARS", "billedAmount": "150.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null },
+      { "sourceLine": "p1:y488", "purchaseOn": "2026-02-12", "billedOn": "2026-02-28", "description": "COMERCIO REPETIDO", "classification": "PURCHASE", "paymentTreatment": "PAYABLE", "billedCurrency": "ARS", "billedAmount": "25.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null },
+      { "sourceLine": "p1:y480", "purchaseOn": "2026-02-13", "billedOn": "2026-02-28", "description": "COMERCIO REPETIDO", "classification": "PURCHASE", "paymentTreatment": "PAYABLE", "billedCurrency": "ARS", "billedAmount": "25.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null },
+      { "sourceLine": "p2:y730", "purchaseOn": "2026-02-15", "billedOn": "2026-02-28", "description": "COMERCIO EXTERIOR EJEMPLO", "classification": "PURCHASE", "paymentTreatment": "PAYABLE", "billedCurrency": "USD", "billedAmount": "20.00", "originalCurrency": "IDR", "originalAmount": "300000.00", "installmentInfo": null },
+      { "sourceLine": "p2:y722", "purchaseOn": "2026-02-16", "billedOn": "2026-02-28", "description": "SERVICIO USD EJEMPLO", "classification": "PURCHASE", "paymentTreatment": "PAYABLE", "billedCurrency": "USD", "billedAmount": "30.00", "originalCurrency": "USD", "originalAmount": "30.00", "installmentInfo": null },
+      { "sourceLine": "p2:y683", "purchaseOn": null, "billedOn": "2026-02-28", "description": "IMPUESTO DE SELLOS", "classification": "PAYABLE_TAX", "paymentTreatment": "PAYABLE", "billedCurrency": "ARS", "billedAmount": "10.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null },
+      { "sourceLine": "p2:y667", "purchaseOn": null, "billedOn": "2026-02-28", "description": "DB.RG 5617 30% (150,00)", "classification": "ELIGIBLE_USD_TAX", "paymentTreatment": "EXCLUDED_FROM_PAYMENT", "billedCurrency": "ARS", "billedAmount": "45.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null }
+    ],
+    "taxExclusions": [
+      { "key": "tax-cycle-01", "amount": "30.00", "currency": "ARS", "status": "CONFIRMED_NOT_CHARGED", "resolution": "CREDIT_LINE" },
+      { "key": "tax-cycle-02", "amount": "45.00", "currency": "ARS", "status": "PENDING_CONFIRMATION", "resolution": null }
+    ],
+    "ignoredPages": [3, 4],
+    "status": "BALANCED"
+  }
+}

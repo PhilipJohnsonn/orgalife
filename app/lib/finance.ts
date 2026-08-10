@@ -34,3 +34,33 @@ export function buildTransactionData(
     cardExpenseId: expense.id,
   };
 }
+
+export function calculateStatementTotal(statement: {
+  amountARS: number | null;
+  amountUSD: number | null;
+  expenses: Array<{
+    amountARS: number | null;
+    amountUSD: number | null;
+    isExcluded: boolean;
+  }>;
+}) {
+  if (statement.expenses.length === 0) {
+    return {
+      totalARS: statement.amountARS ?? 0,
+      totalUSD: statement.amountUSD ?? 0,
+      totalExcludedARS: 0,
+    };
+  }
+
+  const included = statement.expenses.filter((expense) => !expense.isExcluded);
+  const excluded = statement.expenses.filter((expense) => expense.isExcluded);
+
+  return {
+    totalARS: included.reduce((sum, expense) => sum + (expense.amountARS ?? 0), 0),
+    totalUSD: included.reduce((sum, expense) => sum + (expense.amountUSD ?? 0), 0),
+    totalExcludedARS: excluded.reduce(
+      (sum, expense) => sum + (expense.amountARS ?? 0),
+      0
+    ),
+  };
+}

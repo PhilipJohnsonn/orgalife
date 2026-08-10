@@ -103,6 +103,8 @@ export function Dashboard() {
   }, []);
 
   useEffect(() => {
+    // The loader updates state only after its network request resolves.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
   }, [fetchData]);
 

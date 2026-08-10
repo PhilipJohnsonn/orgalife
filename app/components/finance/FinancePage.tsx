@@ -59,7 +59,11 @@ export function FinancePage() {
     setTransactions(transactionsData);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    // The loader updates state only after its network requests resolve.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load();
+  }, [load]);
 
   function handleTcBlur() {
     const n = parseFloat(tcInput);

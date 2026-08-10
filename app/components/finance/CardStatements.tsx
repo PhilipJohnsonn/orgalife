@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Upload, CreditCard, ChevronDown, ChevronRight, Check } from "lucide-react";
+import { calculateStatementTotal } from "@/app/lib/finance";
 
 interface Props {
   statements: CardStatement[];
@@ -17,15 +18,6 @@ interface Props {
 }
 
 const TAX_KEYWORDS = ["PERCEP", "IMP PAIS", "IMP AL VALOR", "IMPUESTO", "SELLO", "INTERES", "CARGO FINANCIERO", "RECARGO", "COMISION"];
-
-function calcStatementTotal(statement: CardStatement) {
-  const included = statement.expenses.filter((e) => !e.isExcluded);
-  const excluded = statement.expenses.filter((e) => e.isExcluded);
-  const totalARS = included.reduce((s, e) => s + (e.amountARS ?? 0), 0);
-  const totalUSD = included.reduce((s, e) => s + (e.amountUSD ?? 0), 0);
-  const totalExcludedARS = excluded.reduce((s, e) => s + (e.amountARS ?? 0), 0);
-  return { totalARS, totalUSD, totalExcludedARS };
-}
 
 function isTaxDescription(desc: string) {
   const upper = desc.toUpperCase();
@@ -56,14 +48,16 @@ export function CardStatements({ statements, exchangeRate, onUpdate }: Props) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [upload, setUpload] = useState<UploadState | null>(null);
   const [addManual, setAddManual] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [manualForm, setManualForm] = useState({ cardName: "VISA", amountUSD: "", amountARS: "", dueDate: "" });
 
-  const totalCardARS = statements.reduce((sum, s) => {
-    const { totalARS } = calcStatementTotal(s);
+  const unpaidStatements = statements.filter((statement) => !statement.isPaid);
+  const totalCardARS = unpaidStatements.reduce((sum, s) => {
+    const { totalARS } = calculateStatementTotal(s);
     return sum + totalARS;
   }, 0);
-  const totalCardUSD = statements.reduce((sum, s) => {
-    const { totalUSD } = calcStatementTotal(s);
+  const totalCardUSD = unpaidStatements.reduce((sum, s) => {
+    const { totalUSD } = calculateStatementTotal(s);
     return sum + totalUSD;
   }, 0);
 
@@ -98,25 +92,33 @@ export function CardStatements({ statements, exchangeRate, onUpdate }: Props) {
   }
 
   async function confirmUpload() {
-    if (!upload) return;
+    if (!upload || saving) return;
     const included = upload.expenses.filter((e) => !e.isExcluded);
     const totalARS = included.reduce((s, e) => s + (e.amountARS ?? 0), 0);
     const totalUSD = included.reduce((s, e) => s + (e.amountUSD ?? 0), 0);
 
-    await fetch("/api/finance/statements", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        cardName: upload.cardName,
-        amountARS: totalARS || null,
-        amountUSD: totalUSD || null,
-        dueDate: upload.dueDate || null,
-        expenses: upload.expenses,
-        exchangeRate,
-      }),
-    });
-    setUpload(null);
-    onUpdate();
+    setSaving(true);
+    try {
+      const response = await fetch("/api/finance/statements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cardName: upload.cardName,
+          amountARS: totalARS || null,
+          amountUSD: totalUSD || null,
+          dueDate: upload.dueDate || null,
+          expenses: upload.expenses,
+          exchangeRate,
+        }),
+      });
+      if (!response.ok) throw new Error();
+      setUpload(null);
+      onUpdate();
+    } catch {
+      alert("No se pudo guardar el resumen. Intentá nuevamente.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function togglePaid(statement: CardStatement) {
@@ -148,19 +150,28 @@ export function CardStatements({ statements, exchangeRate, onUpdate }: Props) {
   }
 
   async function saveManual() {
-    await fetch("/api/finance/statements", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        cardName: manualForm.cardName,
-        amountUSD: manualForm.amountUSD ? parseFloat(manualForm.amountUSD) : null,
-        amountARS: manualForm.amountARS ? parseFloat(manualForm.amountARS) : null,
-        dueDate: manualForm.dueDate || null,
-      }),
-    });
-    setAddManual(false);
-    setManualForm({ cardName: "VISA", amountUSD: "", amountARS: "", dueDate: "" });
-    onUpdate();
+    if (saving) return;
+    setSaving(true);
+    try {
+      const response = await fetch("/api/finance/statements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cardName: manualForm.cardName,
+          amountUSD: manualForm.amountUSD ? parseFloat(manualForm.amountUSD) : null,
+          amountARS: manualForm.amountARS ? parseFloat(manualForm.amountARS) : null,
+          dueDate: manualForm.dueDate || null,
+        }),
+      });
+      if (!response.ok) throw new Error();
+      setAddManual(false);
+      setManualForm({ cardName: "VISA", amountUSD: "", amountARS: "", dueDate: "" });
+      onUpdate();
+    } catch {
+      alert("No se pudo guardar el resumen. Intentá nuevamente.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -286,7 +297,9 @@ export function CardStatements({ statements, exchangeRate, onUpdate }: Props) {
                   </span>
                   <div className="flex gap-2">
                     <Button size="sm" variant="ghost" onClick={() => setUpload(null)}>Cancelar</Button>
-                    <Button size="sm" onClick={confirmUpload}>Confirmar y guardar</Button>
+                    <Button size="sm" onClick={confirmUpload} disabled={saving}>
+                      {saving ? "Guardando..." : "Confirmar y guardar"}
+                    </Button>
                   </div>
                 </div>
               </>
@@ -342,7 +355,9 @@ export function CardStatements({ statements, exchangeRate, onUpdate }: Props) {
             </div>
             <div className="flex gap-2 justify-end">
               <Button size="sm" variant="ghost" onClick={() => setAddManual(false)}>Cancelar</Button>
-              <Button size="sm" onClick={saveManual}>Guardar</Button>
+              <Button size="sm" onClick={saveManual} disabled={saving}>
+                {saving ? "Guardando..." : "Guardar"}
+              </Button>
             </div>
           </div>
         )}
@@ -355,7 +370,7 @@ export function CardStatements({ statements, exchangeRate, onUpdate }: Props) {
 
         {/* Existing statements */}
         {statements.map((statement) => {
-          const { totalARS, totalUSD, totalExcludedARS } = calcStatementTotal(statement);
+          const { totalARS, totalUSD, totalExcludedARS } = calculateStatementTotal(statement);
           const isOpen = expanded === statement.id;
 
           return (

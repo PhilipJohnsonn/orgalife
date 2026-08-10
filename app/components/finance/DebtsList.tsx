@@ -27,6 +27,7 @@ function toUSD(debt: Debt, tc: number): number {
 export function DebtsList({ debts, onUpdate, exchangeRate }: Props) {
   const [form, setForm] = useState(emptyForm);
   const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const activeDebts = debts.filter((d) => !d.isPaid);
   const totalIncluded = activeDebts
@@ -34,20 +35,28 @@ export function DebtsList({ debts, onUpdate, exchangeRate }: Props) {
     .reduce((sum, d) => sum + toUSD(d, exchangeRate), 0);
 
   async function addDebt() {
-    if (!form.description) return;
-    await fetch("/api/finance/debts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        description: form.description,
-        creditor: form.creditor || null,
-        amountUSD: form.amountUSD ? parseFloat(form.amountUSD) : null,
-        amountARS: form.amountARS ? parseFloat(form.amountARS) : null,
-      }),
-    });
-    setForm(emptyForm);
-    setAdding(false);
-    onUpdate();
+    if (!form.description || saving) return;
+    setSaving(true);
+    try {
+      const response = await fetch("/api/finance/debts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: form.description,
+          creditor: form.creditor || null,
+          amountUSD: form.amountUSD ? parseFloat(form.amountUSD) : null,
+          amountARS: form.amountARS ? parseFloat(form.amountARS) : null,
+        }),
+      });
+      if (!response.ok) throw new Error();
+      setForm(emptyForm);
+      setAdding(false);
+      onUpdate();
+    } catch {
+      alert("No se pudo guardar la deuda. Intentá nuevamente.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function toggleIncluded(debt: Debt) {
@@ -136,7 +145,9 @@ export function DebtsList({ debts, onUpdate, exchangeRate }: Props) {
               <Button size="sm" variant="ghost" onClick={() => { setAdding(false); setForm(emptyForm); }}>
                 Cancelar
               </Button>
-              <Button size="sm" onClick={addDebt}>Guardar</Button>
+              <Button size="sm" onClick={addDebt} disabled={saving}>
+                {saving ? "Guardando..." : "Guardar"}
+              </Button>
             </div>
           </div>
         )}
