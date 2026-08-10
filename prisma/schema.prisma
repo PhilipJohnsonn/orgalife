@@ -73,6 +73,165 @@ model Session {
   @@index([expiresAt])
 }
 
+enum AccountRegion {
+  ARGENTINA
+  AUSTRALIA
+  GLOBAL
+}
+
+enum AccountGroupType {
+  BANK
+  WALLET
+  CARD
+  OTHER
+}
+
+enum LedgerAccountKind {
+  ASSET
+  LIABILITY
+  RECEIVABLE
+  PAYABLE
+  INCOME
+  EXPENSE
+  EQUITY
+  CLEARING
+}
+
+enum LedgerAccountSubtype {
+  BANK
+  WALLET
+  CARD
+  OPENING
+  FX
+  OTHER
+}
+
+enum AccountTrackingMode {
+  TRANSACTIONAL
+  DECLARED
+}
+
+enum JournalOperationType {
+  INCOME
+  EXPENSE
+  TRANSFER
+  FX
+  CARD_PURCHASE
+  CARD_PAYMENT
+  LOAN
+  SETTLEMENT
+  OPENING_BALANCE
+  ADJUSTMENT
+  REVERSAL
+}
+
+enum JournalEntryStatus {
+  POSTED
+  PROVISIONAL
+  SUPERSEDED
+  DISMISSED
+  REVERSED
+}
+
+enum JournalEntrySource {
+  MANUAL
+  CARD_STATEMENT
+  SYSTEM
+  REVOLUT_API
+}
+
+enum PostingSide {
+  DEBIT
+  CREDIT
+}
+
+enum JournalAuditField {
+  DESCRIPTION
+  CATEGORY
+}
+
+model AccountGroup {
+  id        String           @id @default(cuid())
+  name      String
+  region    AccountRegion
+  type      AccountGroupType
+  isActive  Boolean          @default(true)
+  accounts  LedgerAccount[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
+model LedgerAccount {
+  id             String               @id @default(cuid())
+  accountGroupId String?
+  name           String
+  currency       String               @db.Char(3)
+  kind           LedgerAccountKind
+  subtype        LedgerAccountSubtype
+  trackingMode   AccountTrackingMode  @default(TRANSACTIONAL)
+  isSystem       Boolean              @default(false)
+  isActive       Boolean              @default(true)
+  accountGroup   AccountGroup?        @relation(fields: [accountGroupId], references: [id], onDelete: Restrict)
+  postings       Posting[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@unique([accountGroupId, currency])
+  @@index([kind, currency])
+}
+
+model JournalEntry {
+  id             String               @id @default(cuid())
+  operationType  JournalOperationType
+  status         JournalEntryStatus   @default(POSTED)
+  source         JournalEntrySource
+  occurredOn     DateTime             @db.Date
+  description    String
+  idempotencyKey String?
+  reversalOfId   String?              @unique
+  metadata       Json?
+  reversalOf     JournalEntry?        @relation("JournalReversal", fields: [reversalOfId], references: [id], onDelete: Restrict)
+  reversedBy     JournalEntry?        @relation("JournalReversal")
+  postings       Posting[]
+  auditEvents    JournalEntryAudit[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@unique([source, idempotencyKey])
+  @@index([occurredOn, status])
+}
+
+model Posting {
+  id              String        @id @default(cuid())
+  journalEntryId  String
+  ledgerAccountId String
+  side            PostingSide
+  amount          Decimal       @db.Decimal(18, 2)
+  categoryId      String?
+  statementLineId String?
+  journalEntry    JournalEntry  @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+  ledgerAccount   LedgerAccount @relation(fields: [ledgerAccountId], references: [id], onDelete: Restrict)
+  category        Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdAt       DateTime      @default(now())
+
+  @@index([journalEntryId])
+  @@index([ledgerAccountId])
+  @@index([categoryId])
+  @@index([statementLineId])
+}
+
+model JournalEntryAudit {
+  id             String            @id @default(cuid())
+  journalEntryId String
+  field          JournalAuditField
+  previousValue  String?
+  newValue       String?
+  journalEntry   JournalEntry      @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+  createdAt      DateTime          @default(now())
+
+  @@index([journalEntryId, createdAt])
+}
+
 enum TransactionType {
   INCOME
   EXPENSE
@@ -141,6 +300,7 @@ model Category {
   color        String        @default("#6B7280")
   createdAt    DateTime      @default(now())
   transactions Transaction[]
+  postings     Posting[]
 }
 
 model Transaction {

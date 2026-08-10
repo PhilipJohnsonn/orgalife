@@ -67,3 +67,90 @@ test("stores only a unique session token hash and supports revocation", async ()
     "session-integration-test",
   ]);
 });
+
+test("contains the additive ledger foundation without replacing legacy finance", async () => {
+  const result = await client.query(`
+    SELECT
+      to_regclass('"AccountGroup"')::text AS account_group,
+      to_regclass('"LedgerAccount"')::text AS ledger_account,
+      to_regclass('"JournalEntry"')::text AS journal_entry,
+      to_regclass('"Posting"')::text AS posting,
+      to_regclass('"JournalEntryAudit"')::text AS audit,
+      to_regclass('"Transaction"')::text AS legacy_transaction
+  `);
+
+  assert.equal(result.rows[0]?.account_group, '"AccountGroup"');
+  assert.equal(result.rows[0]?.ledger_account, '"LedgerAccount"');
+  assert.equal(result.rows[0]?.journal_entry, '"JournalEntry"');
+  assert.equal(result.rows[0]?.posting, '"Posting"');
+  assert.equal(result.rows[0]?.audit, '"JournalEntryAudit"');
+  assert.equal(result.rows[0]?.legacy_transaction, '"Transaction"');
+});
+
+test("uses civil dates and fixed-scale decimal amounts", async () => {
+  const result = await client.query(`
+    SELECT
+      (SELECT data_type
+       FROM information_schema.columns
+       WHERE table_name = 'JournalEntry' AND column_name = 'occurredOn') AS occurred_on_type,
+      (SELECT data_type
+       FROM information_schema.columns
+       WHERE table_name = 'Posting' AND column_name = 'amount') AS amount_type,
+      (SELECT numeric_precision
+       FROM information_schema.columns
+       WHERE table_name = 'Posting' AND column_name = 'amount') AS amount_precision,
+      (SELECT numeric_scale
+       FROM information_schema.columns
+       WHERE table_name = 'Posting' AND column_name = 'amount') AS amount_scale
+  `);
+
+  assert.equal(result.rows[0]?.occurred_on_type, "date");
+  assert.equal(result.rows[0]?.amount_type, "numeric");
+  assert.equal(result.rows[0]?.amount_precision, 18);
+  assert.equal(result.rows[0]?.amount_scale, 2);
+});
+
+test("enforces ledger structural constraints", async () => {
+  await client.query(`
+    INSERT INTO "AccountGroup" (id, name, region, type, "updatedAt")
+    VALUES ('ledger-test-group', 'ICBC Test', 'ARGENTINA', 'BANK', NOW())
+  `);
+  await client.query(`
+    INSERT INTO "LedgerAccount" (
+      id, "accountGroupId", name, currency, kind, subtype, "updatedAt"
+    ) VALUES (
+      'ledger-test-account', 'ledger-test-group', 'ICBC ARS Test', 'ARS',
+      'ASSET', 'BANK', NOW()
+    )
+  `);
+  await client.query(`
+    INSERT INTO "JournalEntry" (
+      id, "operationType", source, "occurredOn", description, "updatedAt"
+    ) VALUES (
+      'ledger-test-entry', 'INCOME', 'MANUAL', DATE '2026-08-10',
+      'Integration test', NOW()
+    )
+  `);
+
+  await assert.rejects(
+    client.query(`
+      INSERT INTO "Posting" (
+        id, "journalEntryId", "ledgerAccountId", side, amount
+      ) VALUES (
+        'ledger-test-invalid-posting', 'ledger-test-entry',
+        'ledger-test-account', 'DEBIT', 0
+      )
+    `),
+    /Posting_amount_positive_check/
+  );
+
+  await client.query('DELETE FROM "JournalEntry" WHERE id = $1', [
+    "ledger-test-entry",
+  ]);
+  await client.query('DELETE FROM "LedgerAccount" WHERE id = $1', [
+    "ledger-test-account",
+  ]);
+  await client.query('DELETE FROM "AccountGroup" WHERE id = $1', [
+    "ledger-test-group",
+  ]);
+});
