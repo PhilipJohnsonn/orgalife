@@ -138,6 +138,35 @@ test("uses civil dates and fixed-scale decimal amounts", async () => {
   assert.equal(result.rows[0]?.amount_scale, 2);
 });
 
+test("contains persistent ICBC statement drafts with fixed-scale totals", async () => {
+  const tables = await client.query(`
+    SELECT
+      to_regclass('"LedgerCardStatement"')::text AS statement,
+      to_regclass('"LedgerCardStatementTotal"')::text AS total,
+      to_regclass('"LedgerCardStatementLine"')::text AS line,
+      to_regclass('"TaxExclusion"')::text AS tax_exclusion
+  `);
+
+  assert.equal(tables.rows[0]?.statement, '"LedgerCardStatement"');
+  assert.equal(tables.rows[0]?.total, '"LedgerCardStatementTotal"');
+  assert.equal(tables.rows[0]?.line, '"LedgerCardStatementLine"');
+  assert.equal(tables.rows[0]?.tax_exclusion, '"TaxExclusion"');
+
+  const columns = await client.query(`
+    SELECT
+      (SELECT data_type FROM information_schema.columns
+       WHERE table_name = 'LedgerCardStatement' AND column_name = 'closingOn') AS closing_on_type,
+      (SELECT numeric_precision FROM information_schema.columns
+       WHERE table_name = 'LedgerCardStatementTotal' AND column_name = 'reportedTotal') AS amount_precision,
+      (SELECT numeric_scale FROM information_schema.columns
+       WHERE table_name = 'LedgerCardStatementTotal' AND column_name = 'reportedTotal') AS amount_scale
+  `);
+
+  assert.equal(columns.rows[0]?.closing_on_type, "date");
+  assert.equal(columns.rows[0]?.amount_precision, 18);
+  assert.equal(columns.rows[0]?.amount_scale, 2);
+});
+
 test("enforces ledger structural constraints", async () => {
   await client.query(`
     INSERT INTO "AccountGroup" (id, name, region, type, "updatedAt")

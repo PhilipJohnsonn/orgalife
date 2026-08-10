@@ -356,6 +356,7 @@ export function parseIcbcVisaLayout(
   options: {
     pendingTaxExclusions?: TaxExclusionPreview[];
     newTaxExclusionKeys?: string[];
+    createTaxExclusionKey?: (index: number) => string;
   } = {}
 ) {
   const rows = groupRows(items);
@@ -396,8 +397,12 @@ export function parseIcbcVisaLayout(
   const eligibleLines = parsed.lines.filter(
     (line) => line.classification === "ELIGIBLE_USD_TAX"
   );
-  const newKeys = options.newTaxExclusionKeys ?? [];
-  if (eligibleLines.length > newKeys.length) {
+  const newKeys = eligibleLines.map(
+    (_, index) =>
+      options.newTaxExclusionKeys?.[index] ??
+      options.createTaxExclusionKey?.(index)
+  );
+  if (newKeys.some((key) => !key)) {
     throw new IcbcVisaParserError(
       "ICBC_MISSING_EXCLUSION_KEY",
       "A stable key is required for each eligible tax exclusion"
@@ -406,7 +411,7 @@ export function parseIcbcVisaLayout(
   const taxExclusions: TaxExclusionPreview[] = [
     ...pending,
     ...eligibleLines.map((line, index) => ({
-      key: newKeys[index],
+      key: newKeys[index]!,
       amount: line.billedAmount,
       currency: line.billedCurrency,
       status: "PENDING_CONFIRMATION" as const,

@@ -13,7 +13,39 @@ type LedgerAccount = {
   kind: string;
   trackingMode: string;
   balance: string;
-  group: { region: "ARGENTINA" | "AUSTRALIA" | "GLOBAL" } | null;
+  group: {
+    id: string;
+    name: string;
+    region: "ARGENTINA" | "AUSTRALIA" | "GLOBAL";
+    type: "BANK" | "WALLET" | "CARD" | "OTHER";
+  } | null;
+};
+
+type CardStatement = {
+  id: string;
+  cardGroup: { id: string; name: string; region: string };
+  closingOn: string;
+  dueOn: string;
+  revision: number;
+  status: "DRAFT" | "CONFIRMED" | "REVERSED";
+  totals: {
+    currency: string;
+    reportedTotal: string;
+    eligibleExclusions: string;
+    payableTotal: string;
+    residual: string;
+  }[];
+  lines: {
+    id: string;
+    purchaseOn: string | null;
+    description: string;
+    classification: string;
+    paymentTreatment: string;
+    billedCurrency: string;
+    billedAmount: string;
+    originalCurrency: string | null;
+    originalAmount: string | null;
+  }[];
 };
 
 type MovementAccount = {
@@ -78,6 +110,7 @@ function valueLabel(value: ConsolidatedValue) {
 export function LedgerFinance() {
   const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
   const [movements, setMovements] = useState<LedgerMovement[]>([]);
+  const [statements, setStatements] = useState<CardStatement[]>([]);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [region, setRegion] = useState<"ARGENTINA" | "AUSTRALIA" | "GLOBAL">("GLOBAL");
   const [operationType, setOperationType] = useState<"INCOME" | "EXPENSE" | "TRANSFER" | "FX">("EXPENSE");
@@ -86,6 +119,9 @@ export function LedgerFinance() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [warningKey, setWarningKey] = useState("");
+  const [statementFile, setStatementFile] = useState<File | null>(null);
+  const [statementFileKey, setStatementFileKey] = useState(0);
+  const [cardGroupId, setCardGroupId] = useState("");
   const [accountForm, setAccountForm] = useState({
     groupName: "",
     accountName: "",
@@ -124,17 +160,19 @@ export function LedgerFinance() {
   });
 
   const load = useCallback(async () => {
-    const [accountsResponse, movementsResponse, overviewResponse] = await Promise.all([
+    const [accountsResponse, movementsResponse, overviewResponse, statementsResponse] = await Promise.all([
       fetch("/api/finance/v1/accounts"),
       fetch("/api/finance/v1/movements"),
       fetch(`/api/finance/v1/overview?region=${region}`),
+      fetch("/api/finance/v1/card-statements"),
     ]);
-    if (!accountsResponse.ok || !movementsResponse.ok || !overviewResponse.ok) {
+    if (!accountsResponse.ok || !movementsResponse.ok || !overviewResponse.ok || !statementsResponse.ok) {
       throw new Error("No se pudieron cargar las finanzas v1");
     }
     setAccounts(await accountsResponse.json());
     setMovements(await movementsResponse.json());
     setOverview(await overviewResponse.json());
+    setStatements(await statementsResponse.json());
   }, [region]);
 
   useEffect(() => {
@@ -147,6 +185,16 @@ export function LedgerFinance() {
     () => accounts.filter((account) => account.kind === "ASSET"),
     [accounts]
   );
+  const cardGroups = useMemo(() => {
+    const groups = new Map<string, NonNullable<LedgerAccount["group"]>>();
+    for (const account of accounts) {
+      if (account.group?.type === "CARD") groups.set(account.group.id, account.group);
+    }
+    return [...groups.values()];
+  }, [accounts]);
+  const selectedCardGroupId = cardGroups.some((group) => group.id === cardGroupId)
+    ? cardGroupId
+    : cardGroups[0]?.id ?? "";
   const visibleAccounts = useMemo(
     () =>
       region === "GLOBAL"
@@ -329,6 +377,32 @@ export function LedgerFinance() {
     }
   }
 
+  async function uploadStatement() {
+    if (saving || !statementFile || !selectedCardGroupId) return;
+    setSaving(true);
+    setError("");
+    try {
+      const body = new FormData();
+      body.set("cardGroupId", selectedCardGroupId);
+      body.set("file", statementFile);
+      const response = await fetch("/api/finance/v1/card-statements", {
+        method: "POST",
+        body,
+      });
+      if (!response.ok) {
+        const responseBody = await response.json().catch(() => null);
+        throw new Error(responseBody?.error?.message ?? "No se pudo importar el resumen");
+      }
+      setStatementFile(null);
+      setStatementFileKey((value) => value + 1);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo importar el resumen");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function movementSummary(movement: LedgerMovement) {
     if (movement.type === "INCOME" && movement.destination) {
       return `+${movement.destination.amount} ${movement.destination.currency} · ${movement.destination.name}`;
@@ -435,6 +509,82 @@ export function LedgerFinance() {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Resúmenes de tarjeta</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {cardGroups.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Creá una cuenta de tipo Tarjeta para habilitar la importación de resúmenes.
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+              <div>
+                <Label htmlFor="statementCard">Tarjeta</Label>
+                <select id="statementCard" className={selectClass()} value={selectedCardGroupId} onChange={(event) => setCardGroupId(event.target.value)}>
+                  {cardGroups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="statementPdf">Resumen PDF</Label>
+                <Input key={statementFileKey} id="statementPdf" type="file" accept="application/pdf,.pdf" onChange={(event) => setStatementFile(event.target.files?.[0] ?? null)} />
+              </div>
+              <Button onClick={uploadStatement} disabled={saving || !statementFile}>
+                {saving ? "Importando..." : "Subir resumen"}
+              </Button>
+            </div>
+          )}
+
+          {statements.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              Todavía no hay resúmenes importados. Subir un PDF crea un borrador y no cambia tus saldos.
+            </p>
+          )}
+          {statements.map((statement) => (
+            <details key={statement.id} className="rounded-md border p-3">
+              <summary className="cursor-pointer list-none">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-medium">{statement.cardGroup.name} · cierre {statement.closingOn}</p>
+                    <p className="text-xs text-muted-foreground">Vence {statement.dueOn} · revisión {statement.revision} · {statement.lines.length} líneas</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-sm tabular-nums">
+                    {statement.totals.map((total) => (
+                      <span key={total.currency} className="rounded bg-muted px-2 py-1">
+                        A pagar {total.payableTotal} {total.currency}
+                      </span>
+                    ))}
+                    <span className="rounded border px-2 py-1">{statement.status === "DRAFT" ? "Borrador" : statement.status}</span>
+                  </div>
+                </div>
+              </summary>
+              <div className="mt-3 space-y-3 border-t pt-3">
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {statement.totals.map((total) => (
+                    <div key={total.currency} className="rounded-md bg-muted/50 p-2 text-sm">
+                      <p className="font-medium">{total.currency}: informado {total.reportedTotal}</p>
+                      <p>Exclusiones {total.eligibleExclusions} · pagadero {total.payableTotal}</p>
+                      <p className={Number(total.residual) === 0 ? "text-muted-foreground" : "text-destructive"}>Diferencia {total.residual}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="max-h-96 space-y-1 overflow-y-auto">
+                  {statement.lines.map((line) => (
+                    <div key={line.id} className="grid gap-1 rounded border p-2 text-sm sm:grid-cols-[5.5rem_minmax(0,1fr)_auto] sm:items-center">
+                      <span className="text-muted-foreground">{line.purchaseOn ?? statement.closingOn}</span>
+                      <span><span className="mr-2 text-xs text-muted-foreground">{line.classification}</span>{line.description}</span>
+                      <span className="tabular-nums">{line.billedAmount} {line.billedCurrency}</span>
+                    </div>
+                  ))}
+                </div>
+                {statement.status === "DRAFT" && <p className="text-xs text-muted-foreground">Este borrador todavía no afecta saldos ni deuda.</p>}
+              </div>
+            </details>
+          ))}
+        </CardContent>
+      </Card>
 
       {operableAccounts.length > 0 && (
         <Card>
