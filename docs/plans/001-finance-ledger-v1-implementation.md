@@ -142,22 +142,27 @@ Cada tarea tiene una salida observable y una verificación. Una tarea se marca c
 
 ### E1-02 — Sesiones opacas
 
+- **Estado:** Complete — commit `c3f9b73`, CI `31382749125`
 - Migración aditiva `Session`.
 - Token aleatorio; sólo hash persistido; expiración y revocación.
 - Invalidar cookie HMAC anterior al activar.
 - **Verificación:** login/logout/expiración/revocación y configuración incompleta fail-closed.
+- **Evidencia:** token opaco de 256 bits, hash SHA-256 único, rotación en login, revocación en logout, rechazo de sesiones expiradas/revocadas y migración/integración PostgreSQL verdes.
 
 ### E1-03 — Google OAuth o Plan B
 
+- **Estado:** Plan B activo — password endurecido; Google pendiente de `PUBLIC_BASE_URL`
 - Si E0-08 pasa: OIDC validado, `PUBLIC_BASE_URL`, state/nonce/PKCE y rollout dual temporal.
 - Si falla: conservar password endurecido; no decodificar tokens sin firma.
 - **Verificación:** firma, issuer, audience, expiración, nonce y email permitido.
 
 ### E1-04 — Bearer MCP default-deny
 
+- **Estado:** Complete — commit `c3f9b73`, CI `31382749125`
 - Allowlist exclusiva boards/columns/tasks/subtasks/tags.
 - Rechazar UI, auth y finanzas.
 - **Verificación:** bearer válido recibe `403` en `/api/finance/*`.
+- **Evidencia:** comparación segura, configuración ausente fail-closed y tests de límites de prefijo, rutas financieras, UI y auth.
 
 ## Etapa 2 — Ledger y cuentas
 
