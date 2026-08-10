@@ -211,7 +211,7 @@ model Posting {
   statementLineId String?
   journalEntry    JournalEntry  @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
   ledgerAccount   LedgerAccount @relation(fields: [ledgerAccountId], references: [id], onDelete: Restrict)
-  category        Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  category        Category?     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   createdAt       DateTime      @default(now())
 
   @@index([journalEntryId])
