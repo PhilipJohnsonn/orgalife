@@ -46,58 +46,32 @@
 - [x] Deploy en VPS via GitHub Actions (push main → build → restart)
 - [x] Scripts `pull-db-from-prod` / `push-db-to-prod`
 
-### Finanzas (`/finanzas`) — Rediseño completado (pasos 1–6)
+### Finanzas (`/finanzas`) — Finance Ledger v1
 
-**Modelo mental:** sin períodos fijos, todo en `Transaction`, categorías del usuario, multi-moneda.
+**Fuente de verdad:** ledger de doble entrada. La especificación y el estado por etapa viven en `docs/rfcs/001-finance-ledger-v1.md`.
 
-#### Schema (migrado)
-- [x] Eliminados: `FinancialPeriod`, `PeriodBalance`, `Income`, `FixedExpense`
-- [x] Conservados: `FinancialAccount`, `CardStatement`, `CardExpense`, `Debt`
-- [x] Nuevos: `Category`, `Transaction` (con enums `TransactionType`, `PaymentMethod`)
-- [x] `Transaction` tiene FK opcional `cardExpenseId → CardExpense` (para paso 4)
-- [x] `FinancialAccount.currencies String[]` — multi-moneda por cuenta (ej. Airtm: USD + EUR)
-
-#### API
-- [x] `/api/finance/accounts` — CRUD (acepta `currencies: String[]`)
-- [x] `/api/finance/categories` — CRUD completo
-- [x] `/api/finance/statements` — CRUD + upload PDF (sin periodId)
-- [x] `/api/finance/expenses/[id]` — PATCH para toggle excluido
-- [x] `/api/finance/debts` — CRUD
-- [x] `/api/finance/transactions` — CRUD (GET incluye `account` y `category`, orden `date desc`)
-
-#### UI
-- [x] `FinancePage` rediseñada: tabs Categorías / Transacciones / Tarjetas / Deudas
-- [x] TC (tipo de cambio ARS/USD) editable en el header, persiste en localStorage
-- [x] `CategoriesList`: CRUD con color picker, edición inline
-- [x] `CardStatements`: ya no depende de `FinancialPeriod`, recibe `statements[]` directo
-- [x] `DebtsList`: sin cambios, funcional
-- [x] Cuentas: dialog con chips multi-moneda seleccionables
-- [x] Tarjetas: upload PDF → preview expenses → toggle excluidos → confirmar y guardar
-- [x] PDF parser (pdfjs-dist) — soporta ICBC VISA y ICBC MASTER, extrae moneda original
-- [x] **Paso 3:** `TransactionsList` — form dialog (tipo, descripción, monto, moneda, fecha, método, cuenta, categoría, recurrente) + lista con edit/delete. `amountUSD` se calcula client-side con el TC (USD directo, ARS/TC, otras monedas → null)
-- [x] **Paso 4:** PDF import → `Transaction` por cada `CardExpense` no excluido (link via `cardExpenseId`):
-  - Schema: `CardExpense.purchaseDate` (fecha de compra parseada del PDF) + `Transaction.cardName`
-  - Parser extrae fecha por ítem (VISA `DD.MM.YY`, MASTER `DD-Mmm-YY`)
-  - Transacción: `EXPENSE`/`CREDIT`, `currency`=ARS si hay `amountARS` sino USD, `amountUSD` = del PDF o `amountARS/TC` (el client manda `exchangeRate`), fecha = compra (cuotas → `dueDate` del resumen, porque el PDF trae la fecha de la compra original)
-  - Dedup: al confirmar un import se borran las transacciones manuales `CREDIT` de esa tarjeta con fecha ≤ última compra del resumen (convención: gastos de tarjeta se cargan a mano solo para el día a día, el resumen las reemplaza). Form manual tiene selector de tarjeta cuando método=Crédito
-  - Sync total: borrar resumen → borra sus transacciones; excluir expense → borra la suya; re-incluir → la recrea
-  - Lógica compartida en `app/lib/finance.ts` (`buildTransactionData`)
-  - Limitación conocida: hay PDFs de MASTER con otro layout que el parser no reconoce (0 ítems) — pre-existente
-- [x] **Paso 5:** Vista principal — la tab Transacciones absorbe el rol (ahora primera y default):
-  - Filtro por rango de fechas: presets (Este mes / Mes pasado / Este año / Todo) + inputs from/to custom (editar un input deselecciona el preset). Filtrado client-side (los datos ya se cargan completos en `FinancePage.load()`)
-  - `BalanceSummary`: ingresos/gastos/neto por cuenta+moneda (transacciones sin cuenta → "Sin cuenta") + fila Total en USD (`amountUSD` ?? ARS/TC del header; otras monedas sin `amountUSD` quedan fuera con nota "N sin conversión")
-  - Transacciones importadas de tarjeta (`cardExpenseId != null`): badge con ícono + cardName, **solo lectura** (sin edit/delete — se gestionan desde la tab Tarjetas para no romper el sync con el statement). Las CREDIT manuales siguen editables
-- [x] **Paso 6:** Gráficos (`FinanceCharts`, recharts) — en la tab Transacciones, debajo del Balance, sobre el mismo array filtrado por rango de fechas:
-  - **Ingresos vs Gastos (USD):** barras agrupadas por mes (verde/rojo, par validado para daltonismo), meses vacíos entre el primero y el último se rellenan con cero. Tooltip con ambos valores, leyenda propia
-  - **Gastos por categoría (USD):** barras horizontales orden desc, color = color de la categoría (sin categoría → gris), valor al final de cada barra, tooltip con % del total. Más de 8 categorías → cola agrupada en "Otras"
-  - Conversión a USD igual que BalanceSummary (`usdValue` exportada de ahí): `amountUSD` ?? ARS/TC; otras monedas sin conversión quedan fuera con nota
+- [x] Cuentas y saldos iniciales en múltiples monedas/regiones.
+- [x] Ingresos, gastos, ajustes, transferencias y conversiones FX atómicas.
+- [x] Balance por cuenta, moneda, región y posición global confirmada/proyectada.
+- [x] Importación ICBC Visa como draft revisable, idempotente y versionado.
+- [x] Clasificación de consumos, pagos, créditos e impuestos excluibles.
+- [x] Confirmación y reversión de resumen sin duplicar movimientos.
+- [x] Compras manuales de tarjeta como provisionales conciliables.
+- [x] Deuda facturada/no facturada, proyección de pago y faltante de USD/ARS.
+- [x] Pago de tarjeta por moneda, allocations parciales y reasignación de pagos existentes.
+- [x] Préstamos y deudas simples con cancelaciones parciales.
+- [x] Categorías y reglas determinísticas aprendidas por el usuario.
+- [x] Compromisos informativos únicos, semanales y mensuales vinculables a consumos reales.
+- [x] UI financiera única y responsive para el flujo mensual.
+- [x] CI, migraciones aditivas, backup restaurable y reset financiero allowlisted.
+- [ ] Corte productivo: backup final, deploy, reset, saldos iniciales reales y smoke test.
 
 ---
 
 ## Pendiente
 
 ### Otros
-- [ ] Reordenamiento de tareas dentro de la misma columna
+- [x] Reordenamiento de tareas dentro de la misma columna
 - [ ] Diseño responsive (mobile)
 - [ ] Countdown a próximos eventos
 

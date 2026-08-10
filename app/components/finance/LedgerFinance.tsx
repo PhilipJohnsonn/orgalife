@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FinancePlanning } from "@/app/components/finance/FinancePlanning";
 
 type LedgerAccount = {
   id: string;
@@ -33,6 +34,8 @@ type CardStatement = {
     reportedTotal: string;
     eligibleExclusions: string;
     payableTotal: string;
+    paidTotal: string;
+    pendingTotal: string;
     residual: string;
   }[];
   lines: {
@@ -45,6 +48,29 @@ type CardStatement = {
     billedAmount: string;
     originalCurrency: string | null;
     originalAmount: string | null;
+    category: { id: string; name: string } | null;
+  }[];
+};
+
+type CardProvisional = {
+  id: string;
+  status: "PROVISIONAL" | "SUPERSEDED" | "DISMISSED";
+  occurredOn: string;
+  description: string;
+  amount: string;
+  currency: string;
+  cardGroup: { id: string; name: string } | null;
+};
+
+type CardPaymentState = {
+  statementId: string;
+  currencies: { currency: string; payable: string; pending: string }[];
+  unassignedPayments: {
+    journalEntryId: string;
+    occurredOn: string;
+    currency: string;
+    available: string;
+    sourceAccount: { id: string; name: string } | null;
   }[];
 };
 
@@ -70,11 +96,36 @@ type Overview = {
   baseCurrency: string;
   consolidated: {
     liquid: ConsolidatedValue;
+    billedCardDebt: ConsolidatedValue;
+    unbilledCardDebt: ConsolidatedValue;
     confirmedNet: ConsolidatedValue;
+    projectedNet: ConsolidatedValue;
+    afterBilled: ConsolidatedValue;
+    afterAll: ConsolidatedValue;
     flow: ConsolidatedValue;
   };
   native: {
-    liquid: { currency: string; amount: string }[];
+    liquid: NativeValue[];
+    billedCardDebt: NativeValue[];
+    unbilledCardDebt: NativeValue[];
+    afterBilled: NativeValue[];
+    afterAll: NativeValue[];
+  };
+  cardProjection: {
+    byCurrency: {
+      currency: string;
+      available: string;
+      billedDebt: string;
+      unbilled: string;
+      billedShortfall: string;
+      afterBilled: string;
+      afterAll: string;
+    }[];
+    usdPurchase: {
+      shortfallUsd: string;
+      arsRequired: string | null;
+      rateArsPerUsd: string | null;
+    };
   };
   rates: {
     quoteCurrency: string;
@@ -84,6 +135,8 @@ type Overview = {
     isManualOverride: boolean;
   }[];
 };
+
+type NativeValue = { currency: string; amount: string };
 
 type ConsolidatedValue = {
   currency: string;
@@ -107,21 +160,28 @@ function valueLabel(value: ConsolidatedValue) {
     : `${value.value} ${value.currency}`;
 }
 
+function nativeLabel(values: NativeValue[]) {
+  return values.map((item) => `${item.amount} ${item.currency}`).join(" · ") || "Sin saldos";
+}
+
 export function LedgerFinance() {
   const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
   const [movements, setMovements] = useState<LedgerMovement[]>([]);
   const [statements, setStatements] = useState<CardStatement[]>([]);
+  const [provisionals, setProvisionals] = useState<CardProvisional[]>([]);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [region, setRegion] = useState<"ARGENTINA" | "AUSTRALIA" | "GLOBAL">("GLOBAL");
   const [operationType, setOperationType] = useState<"INCOME" | "EXPENSE" | "TRANSFER" | "FX">("EXPENSE");
   const [showAccountForm, setShowAccountForm] = useState(false);
   const [showRateForm, setShowRateForm] = useState(false);
+  const [showProvisionalForm, setShowProvisionalForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [warningKey, setWarningKey] = useState("");
   const [statementFile, setStatementFile] = useState<File | null>(null);
   const [statementFileKey, setStatementFileKey] = useState(0);
   const [cardGroupId, setCardGroupId] = useState("");
+  const [paymentState, setPaymentState] = useState<CardPaymentState | null>(null);
   const [accountForm, setAccountForm] = useState({
     groupName: "",
     accountName: "",
@@ -158,21 +218,37 @@ export function LedgerFinance() {
     rate: "",
     appliedOn: today(),
   });
+  const [provisionalForm, setProvisionalForm] = useState({
+    cardGroupId: "",
+    currency: "ARS",
+    amount: "",
+    occurredOn: today(),
+    description: "",
+  });
+  const [paymentForm, setPaymentForm] = useState({
+    statementId: "",
+    sourceAccountId: "",
+    currency: "",
+    amount: "",
+    occurredOn: today(),
+  });
 
   const load = useCallback(async () => {
-    const [accountsResponse, movementsResponse, overviewResponse, statementsResponse] = await Promise.all([
+    const [accountsResponse, movementsResponse, overviewResponse, statementsResponse, provisionalsResponse] = await Promise.all([
       fetch("/api/finance/v1/accounts"),
       fetch("/api/finance/v1/movements"),
       fetch(`/api/finance/v1/overview?region=${region}`),
       fetch("/api/finance/v1/card-statements"),
+      fetch("/api/finance/v1/card-provisionals"),
     ]);
-    if (!accountsResponse.ok || !movementsResponse.ok || !overviewResponse.ok || !statementsResponse.ok) {
+    if (!accountsResponse.ok || !movementsResponse.ok || !overviewResponse.ok || !statementsResponse.ok || !provisionalsResponse.ok) {
       throw new Error("No se pudieron cargar las finanzas v1");
     }
     setAccounts(await accountsResponse.json());
     setMovements(await movementsResponse.json());
     setOverview(await overviewResponse.json());
     setStatements(await statementsResponse.json());
+    setProvisionals(await provisionalsResponse.json());
   }, [region]);
 
   useEffect(() => {
@@ -403,6 +479,135 @@ export function LedgerFinance() {
     }
   }
 
+  async function confirmStatement(statementId: string) {
+    if (saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      await postJson(`/api/finance/v1/card-statements/${statementId}/confirm`, {});
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo confirmar el resumen");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function reverseStatement(statementId: string) {
+    if (saving) return;
+    const key = `reverse-statement:${statementId}`;
+    if (warningKey !== key) {
+      setWarningKey(key);
+      setError("Revertir deshace los cargos del resumen, pero no vuelve a mover pagos bancarios. Volvé a confirmar para continuar.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await postJson(`/api/finance/v1/card-statements/${statementId}/reverse`, {
+        occurredOn: today(),
+      });
+      setWarningKey("");
+      setPaymentState(null);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo revertir el resumen");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveProvisionalPurchase() {
+    if (saving || !selectedCardGroupId) return;
+    setSaving(true);
+    setError("");
+    try {
+      await postJson("/api/finance/v1/card-provisionals", {
+        ...provisionalForm,
+        cardGroupId: provisionalForm.cardGroupId || selectedCardGroupId,
+        idempotencyKey: crypto.randomUUID(),
+      });
+      setProvisionalForm((current) => ({ ...current, amount: "", description: "" }));
+      setShowProvisionalForm(false);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo guardar el consumo manual");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function openCardPayment(statement: CardStatement, currency: string) {
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/finance/v1/card-payments?statementId=${statement.id}`);
+      if (!response.ok) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.error?.message ?? "No se pudo preparar el pago");
+      }
+      const state = await response.json() as CardPaymentState;
+      const pending = state.currencies.find((item) => item.currency === currency)?.pending ?? "0.00";
+      const source = assetAccounts.find((account) => account.currency === currency);
+      setPaymentState(state);
+      setPaymentForm({
+        statementId: statement.id,
+        sourceAccountId: source?.id ?? "",
+        currency,
+        amount: pending,
+        occurredOn: today(),
+      });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo preparar el pago");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveCardPayment() {
+    if (saving) return;
+    setSaving(true);
+    setError("");
+    try {
+      await postJson("/api/finance/v1/card-payments", {
+        statementId: paymentForm.statementId,
+        sourceAccountId: paymentForm.sourceAccountId,
+        amount: paymentForm.amount,
+        occurredOn: paymentForm.occurredOn,
+        idempotencyKey: crypto.randomUUID(),
+      });
+      setPaymentState(null);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo registrar el pago");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function allocateExistingPayment(journalEntryId: string, available: string) {
+    if (saving || !paymentState) return;
+    const pending = paymentState.currencies.find(
+      (item) => item.currency === paymentForm.currency
+    )?.pending ?? "0.00";
+    const amount = Math.min(Number(available), Number(pending)).toFixed(2);
+    setSaving(true);
+    setError("");
+    try {
+      await postJson("/api/finance/v1/card-payments/allocate", {
+        statementId: paymentForm.statementId,
+        journalEntryId,
+        amount,
+      });
+      setPaymentState(null);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo reasignar el pago");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function movementSummary(movement: LedgerMovement) {
     if (movement.type === "INCOME" && movement.destination) {
       return `+${movement.destination.amount} ${movement.destination.currency} · ${movement.destination.name}`;
@@ -470,11 +675,44 @@ export function LedgerFinance() {
       )}
 
       {overview && (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Dinero disponible</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.liquid)}</p><p className="text-xs text-muted-foreground">{overview.native.liquid.map((item) => `${item.amount} ${item.currency}`).join(" · ") || "Sin saldos"}</p></CardContent></Card>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Dinero disponible</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.liquid)}</p><p className="text-xs text-muted-foreground">{nativeLabel(overview.native.liquid)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Deuda facturada</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.billedCardDebt)}</p><p className="text-xs text-muted-foreground">{nativeLabel(overview.native.billedCardDebt)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Consumos no facturados</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.unbilledCardDebt)}</p><p className="text-xs text-muted-foreground">{nativeLabel(overview.native.unbilledCardDebt)}</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Posición neta confirmada</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.confirmedNet)}</p><p className="text-xs text-muted-foreground">Sin proyectar consumos no facturados</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Posición neta proyectada</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.projectedNet)}</p><p className="text-xs text-muted-foreground">Descuenta consumos todavía no facturados</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Después de pagar lo facturado</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.afterBilled)}</p><p className="text-xs text-muted-foreground">{nativeLabel(overview.native.afterBilled)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Después de pagar todo</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.afterAll)}</p><p className="text-xs text-muted-foreground">{nativeLabel(overview.native.afterAll)}</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Flujo del mes</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.flow)}</p><p className="text-xs text-muted-foreground">Ingresos − gastos; no incluye transferencias ni FX</p></CardContent></Card>
         </div>
+      )}
+
+      {overview && overview.cardProjection.byCurrency.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base">Proyección de pago de tarjeta</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {overview.cardProjection.byCurrency.map((item) => (
+                <div key={item.currency} className="rounded-md border p-3 text-sm">
+                  <p className="font-medium">{item.currency}</p>
+                  <p>Disponible {item.available} · deuda {item.billedDebt}</p>
+                  <p>No facturado {item.unbilled}</p>
+                  <p className={Number(item.afterBilled) < 0 ? "text-destructive" : ""}>Después de facturado {item.afterBilled}</p>
+                  <p className={Number(item.afterAll) < 0 ? "text-destructive" : ""}>Después de todo {item.afterAll}</p>
+                </div>
+              ))}
+            </div>
+            {Number(overview.cardProjection.usdPurchase.shortfallUsd) > 0 && (
+              <p className="text-sm">
+                Faltan {overview.cardProjection.usdPurchase.shortfallUsd} USD.
+                {overview.cardProjection.usdPurchase.arsRequired
+                  ? ` Comprar ese monto requiere aproximadamente ${overview.cardProjection.usdPurchase.arsRequired} ARS al tipo de cambio cargado.`
+                  : " Cargá una cotización ARS para calcular cuánto necesitás comprar."}
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">Esta proyección no mueve dinero, no reserva fondos y no cambia el estado de ningún resumen.</p>
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -534,6 +772,33 @@ export function LedgerFinance() {
               <Button onClick={uploadStatement} disabled={saving || !statementFile}>
                 {saving ? "Importando..." : "Subir resumen"}
               </Button>
+              <Button className="sm:col-span-3" variant="outline" onClick={() => setShowProvisionalForm((value) => !value)}>
+                {showProvisionalForm ? "Cancelar consumo manual" : "Cargar consumo manual con tarjeta"}
+              </Button>
+            </div>
+          )}
+
+          {showProvisionalForm && cardGroups.length > 0 && (
+            <div className="grid gap-3 rounded-md border p-3 sm:grid-cols-2 lg:grid-cols-5">
+              <div><Label htmlFor="provisionalCard">Tarjeta</Label><select id="provisionalCard" className={selectClass()} value={provisionalForm.cardGroupId || selectedCardGroupId} onChange={(event) => setProvisionalForm({ ...provisionalForm, cardGroupId: event.target.value })}>{cardGroups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></div>
+              <div><Label htmlFor="provisionalCurrency">Moneda</Label><select id="provisionalCurrency" className={selectClass()} value={provisionalForm.currency} onChange={(event) => setProvisionalForm({ ...provisionalForm, currency: event.target.value })}><option>ARS</option><option>USD</option><option>AUD</option></select></div>
+              <div><Label htmlFor="provisionalAmount">Importe</Label><Input id="provisionalAmount" inputMode="decimal" value={provisionalForm.amount} onChange={(event) => setProvisionalForm({ ...provisionalForm, amount: event.target.value })} /></div>
+              <div><Label htmlFor="provisionalDate">Fecha</Label><Input id="provisionalDate" type="date" value={provisionalForm.occurredOn} onChange={(event) => setProvisionalForm({ ...provisionalForm, occurredOn: event.target.value })} /></div>
+              <div><Label htmlFor="provisionalDescription">Descripción</Label><Input id="provisionalDescription" value={provisionalForm.description} onChange={(event) => setProvisionalForm({ ...provisionalForm, description: event.target.value })} /></div>
+              <Button className="sm:col-span-2 lg:col-span-5" onClick={saveProvisionalPurchase} disabled={saving}>{saving ? "Guardando..." : "Guardar consumo provisional"}</Button>
+              <p className="text-xs text-muted-foreground sm:col-span-2 lg:col-span-5">Es informativo hasta que aparezca en un resumen; no descuenta dinero ni crea deuda facturada.</p>
+            </div>
+          )}
+
+          {provisionals.filter((entry) => entry.status === "PROVISIONAL").length > 0 && (
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Consumos no facturados</p>
+              {provisionals.filter((entry) => entry.status === "PROVISIONAL").map((entry) => (
+                <div key={entry.id} className="flex flex-wrap justify-between gap-2 rounded border p-2 text-sm">
+                  <span>{entry.occurredOn} · {entry.description}</span>
+                  <span className="tabular-nums">{entry.amount} {entry.currency}</span>
+                </div>
+              ))}
             </div>
           )}
 
@@ -553,7 +818,7 @@ export function LedgerFinance() {
                   <div className="flex flex-wrap gap-2 text-sm tabular-nums">
                     {statement.totals.map((total) => (
                       <span key={total.currency} className="rounded bg-muted px-2 py-1">
-                        A pagar {total.payableTotal} {total.currency}
+                        {statement.status === "CONFIRMED" ? "Pendiente" : "A pagar"} {statement.status === "CONFIRMED" ? total.pendingTotal : total.payableTotal} {total.currency}
                       </span>
                     ))}
                     <span className="rounded border px-2 py-1">{statement.status === "DRAFT" ? "Borrador" : statement.status}</span>
@@ -566,6 +831,7 @@ export function LedgerFinance() {
                     <div key={total.currency} className="rounded-md bg-muted/50 p-2 text-sm">
                       <p className="font-medium">{total.currency}: informado {total.reportedTotal}</p>
                       <p>Exclusiones {total.eligibleExclusions} · pagadero {total.payableTotal}</p>
+                      {statement.status === "CONFIRMED" && <p>Pagado {total.paidTotal} · pendiente {total.pendingTotal}</p>}
                       <p className={Number(total.residual) === 0 ? "text-muted-foreground" : "text-destructive"}>Diferencia {total.residual}</p>
                     </div>
                   ))}
@@ -580,11 +846,41 @@ export function LedgerFinance() {
                   ))}
                 </div>
                 {statement.status === "DRAFT" && <p className="text-xs text-muted-foreground">Este borrador todavía no afecta saldos ni deuda.</p>}
+                <div className="flex flex-wrap gap-2">
+                  {statement.status === "DRAFT" && <Button onClick={() => confirmStatement(statement.id)} disabled={saving}>Confirmar resumen</Button>}
+                  {statement.status === "CONFIRMED" && statement.totals.filter((total) => Number(total.pendingTotal) > 0).map((total) => <Button key={total.currency} onClick={() => openCardPayment(statement, total.currency)} disabled={saving}>Pagar {total.currency}</Button>)}
+                  {statement.status === "CONFIRMED" && <Button variant="outline" onClick={() => reverseStatement(statement.id)} disabled={saving}>Revertir resumen</Button>}
+                </div>
               </div>
             </details>
           ))}
+
+          {paymentState && (
+            <div className="space-y-3 rounded-md border p-3">
+              <p className="font-medium">Registrar pago en {paymentForm.currency}</p>
+              {paymentState.unassignedPayments.filter((payment) => payment.currency === paymentForm.currency).map((payment) => (
+                <div key={payment.journalEntryId} className="flex flex-wrap items-center justify-between gap-2 rounded bg-muted/50 p-2 text-sm">
+                  <span>Pago existente del {payment.occurredOn}: {payment.available} {payment.currency}</span>
+                  <Button size="sm" variant="outline" onClick={() => allocateExistingPayment(payment.journalEntryId, payment.available)} disabled={saving}>Reasignar sin mover el banco</Button>
+                </div>
+              ))}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div><Label htmlFor="cardPaymentAccount">Cuenta de origen</Label><select id="cardPaymentAccount" className={selectClass()} value={paymentForm.sourceAccountId} onChange={(event) => setPaymentForm({ ...paymentForm, sourceAccountId: event.target.value })}>{assetAccounts.filter((account) => account.currency === paymentForm.currency).map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></div>
+                <div><Label htmlFor="cardPaymentAmount">Importe</Label><Input id="cardPaymentAmount" inputMode="decimal" value={paymentForm.amount} onChange={(event) => setPaymentForm({ ...paymentForm, amount: event.target.value })} /></div>
+                <div><Label htmlFor="cardPaymentDate">Fecha</Label><Input id="cardPaymentDate" type="date" value={paymentForm.occurredOn} onChange={(event) => setPaymentForm({ ...paymentForm, occurredOn: event.target.value })} /></div>
+                <div className="flex items-end gap-2"><Button onClick={saveCardPayment} disabled={saving || !paymentForm.sourceAccountId}>{saving ? "Guardando..." : "Registrar pago nuevo"}</Button><Button variant="ghost" onClick={() => setPaymentState(null)}>Cancelar</Button></div>
+              </div>
+              <p className="text-xs text-muted-foreground">Un pago nuevo baja la cuenta bancaria. Si aparece un pago existente arriba, reasignalo para evitar descontarlo dos veces.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <FinancePlanning
+        accounts={accounts}
+        statements={statements}
+        onLedgerChanged={load}
+      />
 
       {operableAccounts.length > 0 && (
         <Card>

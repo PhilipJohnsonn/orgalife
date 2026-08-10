@@ -54,6 +54,67 @@ export type ManualRateCommand = {
 
 export type BaseCurrencyCommand = { baseCurrency: string };
 
+export type CardPaymentCommand = {
+  statementId: string;
+  sourceAccountId: string;
+  amount: string;
+  occurredOn: string;
+  idempotencyKey: string;
+};
+
+export type ProvisionalCardPurchaseCommand = {
+  cardGroupId: string;
+  currency: string;
+  amount: string;
+  occurredOn: string;
+  description: string;
+  categoryId?: string;
+  idempotencyKey: string;
+};
+
+export type CreateObligationCommand = {
+  direction: "RECEIVABLE" | "PAYABLE";
+  originType: "ACCOUNT_MOVEMENT" | "OPENING_BALANCE";
+  counterparty: string;
+  description: string;
+  currency: string;
+  amount: string;
+  occurredOn: string;
+  dueOn?: string;
+  assetAccountId?: string;
+  idempotencyKey: string;
+};
+
+export type SettleObligationCommand = {
+  obligationId: string;
+  assetAccountId: string;
+  amount: string;
+  occurredOn: string;
+  idempotencyKey: string;
+};
+
+export type RecurringCommitmentCommand = {
+  name: string;
+  expectedAmount: string;
+  currency: string;
+  frequency: "ONCE" | "WEEKLY" | "MONTHLY";
+  startsOn: string;
+  endsOn?: string;
+  categoryId?: string;
+  expectedAccountId?: string;
+};
+
+export type CategoryRuleCommand = {
+  pattern: string;
+  categoryId: string;
+  priority: number;
+};
+
+export type CategorizeStatementLineCommand = {
+  categoryId: string;
+  learnRule: boolean;
+};
+
 const MONEY_PATTERN = /^\d{1,16}(?:\.\d{1,2})?$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -211,6 +272,62 @@ export function parseBaseCurrencyCommand(input: unknown): BaseCurrencyCommand {
   return { baseCurrency };
 }
 
+export function parseCardPaymentCommand(input: unknown): CardPaymentCommand {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new RequestValidationError("Body must be an object");
+  }
+  const record = input as Record<string, unknown>;
+  const occurredOn = requiredString(record, "occurredOn");
+  if (!DATE_PATTERN.test(occurredOn)) {
+    throw new RequestValidationError("occurredOn must use YYYY-MM-DD");
+  }
+  const idempotencyKey = requiredString(record, "idempotencyKey");
+  if (!UUID_PATTERN.test(idempotencyKey)) {
+    throw new RequestValidationError("idempotencyKey must be a UUID");
+  }
+  return {
+    statementId: requiredString(record, "statementId"),
+    sourceAccountId: requiredString(record, "sourceAccountId"),
+    amount: positiveMoney(record, "amount"),
+    occurredOn,
+    idempotencyKey,
+  };
+}
+
+export function parseProvisionalCardPurchaseCommand(
+  input: unknown
+): ProvisionalCardPurchaseCommand {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new RequestValidationError("Body must be an object");
+  }
+  const record = input as Record<string, unknown>;
+  const currency = requiredString(record, "currency");
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    throw new RequestValidationError("currency must be an ISO 4217 code");
+  }
+  const occurredOn = requiredString(record, "occurredOn");
+  if (!DATE_PATTERN.test(occurredOn)) {
+    throw new RequestValidationError("occurredOn must use YYYY-MM-DD");
+  }
+  const idempotencyKey = requiredString(record, "idempotencyKey");
+  if (!UUID_PATTERN.test(idempotencyKey)) {
+    throw new RequestValidationError("idempotencyKey must be a UUID");
+  }
+  const categoryId = record.categoryId;
+  if (categoryId !== undefined && (typeof categoryId !== "string" || !categoryId.trim())) {
+    throw new RequestValidationError("categoryId must be a non-empty string");
+  }
+  return {
+    cardGroupId: requiredString(record, "cardGroupId"),
+    currency,
+    amount: positiveMoney(record, "amount"),
+    occurredOn,
+    description: requiredString(record, "description"),
+    ...(typeof categoryId === "string" ? { categoryId: categoryId.trim() } : {}),
+    idempotencyKey,
+  };
+}
+
 export function parseCreateAccountCommand(input: unknown): CreateAccountCommand {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     throw new RequestValidationError("Body must be an object");
@@ -250,5 +367,147 @@ export function parseCreateAccountCommand(input: unknown): CreateAccountCommand 
     trackingMode,
     openingBalance,
     ...(typeof openingOn === "string" ? { openingOn } : {}),
+  };
+}
+
+export function parseCreateObligationCommand(input: unknown): CreateObligationCommand {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new RequestValidationError("Body must be an object");
+  }
+  const record = input as Record<string, unknown>;
+  const direction = record.direction;
+  if (direction !== "RECEIVABLE" && direction !== "PAYABLE") {
+    throw new RequestValidationError("direction must be RECEIVABLE or PAYABLE");
+  }
+  const originType = record.originType;
+  if (originType !== "ACCOUNT_MOVEMENT" && originType !== "OPENING_BALANCE") {
+    throw new RequestValidationError("originType is invalid");
+  }
+  const currency = requiredString(record, "currency");
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    throw new RequestValidationError("currency must be an ISO 4217 code");
+  }
+  const occurredOn = requiredString(record, "occurredOn");
+  if (!DATE_PATTERN.test(occurredOn)) {
+    throw new RequestValidationError("occurredOn must use YYYY-MM-DD");
+  }
+  const dueOn = record.dueOn;
+  if (dueOn !== undefined && (typeof dueOn !== "string" || !DATE_PATTERN.test(dueOn))) {
+    throw new RequestValidationError("dueOn must use YYYY-MM-DD");
+  }
+  const assetAccountId = record.assetAccountId;
+  if (originType === "ACCOUNT_MOVEMENT" && (typeof assetAccountId !== "string" || !assetAccountId.trim())) {
+    throw new RequestValidationError("assetAccountId is required for an account movement");
+  }
+  const idempotencyKey = requiredString(record, "idempotencyKey");
+  if (!UUID_PATTERN.test(idempotencyKey)) {
+    throw new RequestValidationError("idempotencyKey must be a UUID");
+  }
+  return {
+    direction,
+    originType,
+    counterparty: requiredString(record, "counterparty"),
+    description: requiredString(record, "description"),
+    currency,
+    amount: positiveMoney(record, "amount"),
+    occurredOn,
+    ...(typeof dueOn === "string" ? { dueOn } : {}),
+    ...(typeof assetAccountId === "string" ? { assetAccountId: assetAccountId.trim() } : {}),
+    idempotencyKey,
+  };
+}
+
+export function parseSettleObligationCommand(input: unknown): SettleObligationCommand {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new RequestValidationError("Body must be an object");
+  }
+  const record = input as Record<string, unknown>;
+  const occurredOn = requiredString(record, "occurredOn");
+  if (!DATE_PATTERN.test(occurredOn)) {
+    throw new RequestValidationError("occurredOn must use YYYY-MM-DD");
+  }
+  const idempotencyKey = requiredString(record, "idempotencyKey");
+  if (!UUID_PATTERN.test(idempotencyKey)) {
+    throw new RequestValidationError("idempotencyKey must be a UUID");
+  }
+  return {
+    obligationId: requiredString(record, "obligationId"),
+    assetAccountId: requiredString(record, "assetAccountId"),
+    amount: positiveMoney(record, "amount"),
+    occurredOn,
+    idempotencyKey,
+  };
+}
+
+export function parseRecurringCommitmentCommand(input: unknown): RecurringCommitmentCommand {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new RequestValidationError("Body must be an object");
+  }
+  const record = input as Record<string, unknown>;
+  const currency = requiredString(record, "currency");
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    throw new RequestValidationError("currency must be an ISO 4217 code");
+  }
+  const frequency = record.frequency;
+  if (!(frequency === "ONCE" || frequency === "WEEKLY" || frequency === "MONTHLY")) {
+    throw new RequestValidationError("frequency is invalid");
+  }
+  const startsOn = requiredString(record, "startsOn");
+  if (!DATE_PATTERN.test(startsOn)) {
+    throw new RequestValidationError("startsOn must use YYYY-MM-DD");
+  }
+  const endsOn = record.endsOn;
+  if (endsOn !== undefined && (typeof endsOn !== "string" || !DATE_PATTERN.test(endsOn))) {
+    throw new RequestValidationError("endsOn must use YYYY-MM-DD");
+  }
+  if (typeof endsOn === "string" && endsOn < startsOn) {
+    throw new RequestValidationError("endsOn must not precede startsOn");
+  }
+  const categoryId = record.categoryId;
+  const expectedAccountId = record.expectedAccountId;
+  for (const [field, value] of [["categoryId", categoryId], ["expectedAccountId", expectedAccountId]] as const) {
+    if (value !== undefined && (typeof value !== "string" || !value.trim())) {
+      throw new RequestValidationError(`${field} must be a non-empty string`);
+    }
+  }
+  return {
+    name: requiredString(record, "name"),
+    expectedAmount: positiveMoney(record, "expectedAmount"),
+    currency,
+    frequency,
+    startsOn,
+    ...(typeof endsOn === "string" ? { endsOn } : {}),
+    ...(typeof categoryId === "string" ? { categoryId: categoryId.trim() } : {}),
+    ...(typeof expectedAccountId === "string" ? { expectedAccountId: expectedAccountId.trim() } : {}),
+  };
+}
+
+export function parseCategoryRuleCommand(input: unknown): CategoryRuleCommand {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new RequestValidationError("Body must be an object");
+  }
+  const record = input as Record<string, unknown>;
+  const priority = record.priority ?? 0;
+  if (!Number.isInteger(priority) || Number(priority) < -1000 || Number(priority) > 1000) {
+    throw new RequestValidationError("priority must be an integer between -1000 and 1000");
+  }
+  return {
+    pattern: requiredString(record, "pattern"),
+    categoryId: requiredString(record, "categoryId"),
+    priority: Number(priority),
+  };
+}
+
+export function parseCategorizeStatementLineCommand(input: unknown): CategorizeStatementLineCommand {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new RequestValidationError("Body must be an object");
+  }
+  const record = input as Record<string, unknown>;
+  if (typeof record.learnRule !== "boolean") {
+    throw new RequestValidationError("learnRule must be boolean");
+  }
+  return {
+    categoryId: requiredString(record, "categoryId"),
+    learnRule: record.learnRule,
   };
 }

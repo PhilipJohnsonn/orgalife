@@ -1,11 +1,11 @@
 # RFC 001: OrgaLife Finance Ledger v1
 
-- **Estado:** Accepted — listo para planificación de implementación
+- **Estado:** Implementado en `finanzas` — corte productivo pendiente
 - **Autores:** Philip Johnson / Codex
 - **Revisores:** Claude (2 pasadas), Codex (2 pasadas)
 - **Fecha:** 2026-08-10
-- **Última actualización:** 2026-08-10
-- **Implementación:** no iniciada
+- **Última actualización:** 2026-08-11
+- **Implementación:** Etapas 0–7 completas; Etapa 8 preparada y pendiente de backup/reset productivo
 
 ## 1. Resumen ejecutivo
 
@@ -915,6 +915,22 @@ Antes del primer merge a `main`:
 - la Etapa 7 completa debe estar aprobada;
 - el checklist E2E manual debe estar registrado;
 - el reset y cutover se ejecutan como una única operación controlada de Etapa 8.
+
+### Estado de ejecución al 2026-08-11
+
+| Etapa | Estado | Evidencia principal |
+|---|---|---|
+| 0 — Contratos y fixtures | Completa | Cuatro PDFs ICBC Visa privados, fixtures anonimizados, pruebas de integración, CI y backup ensayado. |
+| 1 — Base segura | Completa | Sesiones opacas, OIDC validado, uploads limitados, MCP default-deny y contratos runtime. |
+| 2 — Ledger y cuentas | Completa | Ledger de doble entrada, cuentas, saldos iniciales, ingresos, gastos y ajustes con invariantes. |
+| 3 — Transferencias y FX | Completa | Transferencias, conversiones, snapshots/override y vistas regionales/globales. |
+| 4 — ICBC Visa | Completa | Draft persistente/versionado, hash real, confirmación/reversión, impuestos, provisionales y conciliación de pagos/créditos. |
+| 5 — Proyección y pago | Completa | Deuda facturada/no facturada, proyección por moneda, pagos parciales, allocations y reasignación sin duplicar banco. |
+| 6 — Obligaciones y compromisos | Completa | Cuentas por cobrar/pagar, cancelaciones parciales, reglas de categoría y compromisos informativos. |
+| 7 — Dashboard y UI | Completa | Onboarding, dashboard, flujo mensual único, retiro de la UI financiera anterior y E2E desktop/mobile. |
+| 8 — Producción | Preparada | `reset-finance-v1.command` exige backup restaurable y confirmación exacta; falta ejecutar backup, deploy, reset, saldos reales y smoke. |
+
+La implementación se validó localmente con 44 tests unitarios, 9 de integración, lint y typecheck. El build local quedó impedido por la restricción del sandbox al abrir el puerto interno de Turbopack; el build de CI en GitHub es el gate autoritativo antes del merge a `main`.
 
 ### Etapa 0 — Congelar contratos y fixtures
 

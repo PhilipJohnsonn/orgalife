@@ -144,13 +144,17 @@ test("contains persistent ICBC statement drafts with fixed-scale totals", async 
       to_regclass('"LedgerCardStatement"')::text AS statement,
       to_regclass('"LedgerCardStatementTotal"')::text AS total,
       to_regclass('"LedgerCardStatementLine"')::text AS line,
-      to_regclass('"TaxExclusion"')::text AS tax_exclusion
+      to_regclass('"TaxExclusion"')::text AS tax_exclusion,
+      to_regclass('"CardReconciliation"')::text AS reconciliation,
+      to_regclass('"CardPaymentAllocation"')::text AS payment_allocation
   `);
 
   assert.equal(tables.rows[0]?.statement, '"LedgerCardStatement"');
   assert.equal(tables.rows[0]?.total, '"LedgerCardStatementTotal"');
   assert.equal(tables.rows[0]?.line, '"LedgerCardStatementLine"');
   assert.equal(tables.rows[0]?.tax_exclusion, '"TaxExclusion"');
+  assert.equal(tables.rows[0]?.reconciliation, '"CardReconciliation"');
+  assert.equal(tables.rows[0]?.payment_allocation, '"CardPaymentAllocation"');
 
   const columns = await client.query(`
     SELECT
@@ -165,6 +169,33 @@ test("contains persistent ICBC statement drafts with fixed-scale totals", async 
   assert.equal(columns.rows[0]?.closing_on_type, "date");
   assert.equal(columns.rows[0]?.amount_precision, 18);
   assert.equal(columns.rows[0]?.amount_scale, 2);
+});
+
+test("contains obligation, category-rule and commitment subledgers", async () => {
+  const tables = await client.query(`
+    SELECT
+      to_regclass('"Obligation"')::text AS obligation,
+      to_regclass('"ObligationSettlement"')::text AS settlement,
+      to_regclass('"CategoryRule"')::text AS category_rule,
+      to_regclass('"RecurringCommitment"')::text AS commitment,
+      to_regclass('"RecurringCommitmentObservation"')::text AS observation
+  `);
+
+  assert.equal(tables.rows[0]?.obligation, '"Obligation"');
+  assert.equal(tables.rows[0]?.settlement, '"ObligationSettlement"');
+  assert.equal(tables.rows[0]?.category_rule, '"CategoryRule"');
+  assert.equal(tables.rows[0]?.commitment, '"RecurringCommitment"');
+  assert.equal(tables.rows[0]?.observation, '"RecurringCommitmentObservation"');
+
+  const amounts = await client.query(`
+    SELECT
+      (SELECT numeric_scale FROM information_schema.columns
+       WHERE table_name = 'Obligation' AND column_name = 'originalAmount') AS obligation_scale,
+      (SELECT numeric_scale FROM information_schema.columns
+       WHERE table_name = 'RecurringCommitment' AND column_name = 'expectedAmount') AS commitment_scale
+  `);
+  assert.equal(amounts.rows[0]?.obligation_scale, 2);
+  assert.equal(amounts.rows[0]?.commitment_scale, 2);
 });
 
 test("enforces ledger structural constraints", async () => {

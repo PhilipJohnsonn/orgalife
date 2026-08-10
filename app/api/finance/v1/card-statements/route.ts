@@ -93,7 +93,7 @@ export async function POST(request: Request) {
     const bytes = new Uint8Array(await file.arrayBuffer());
     let layoutItems;
     try {
-      layoutItems = await extractPdfLayoutItems(bytes);
+      layoutItems = await extractPdfLayoutItems(bytes.slice());
     } catch (error) {
       console.error(
         "finance_v1_card_statement_pdf_parse_failed",

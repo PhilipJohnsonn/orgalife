@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 
 import { Prisma } from "@/app/generated/prisma/client";
+import { chooseCategoryRule } from "@/app/lib/finance-category-service";
 import { parseIcbcVisaLayout } from "@/app/lib/icbc-visa-parser";
 import { parseCivilDate } from "@/app/lib/ledger";
 import { prisma } from "@/app/lib/prisma";
@@ -37,6 +38,7 @@ const statementInclude = {
     include: { category: true },
   },
   taxExclusions: true,
+  paymentAllocations: { where: { releasedAt: null } },
 } satisfies Prisma.LedgerCardStatementInclude;
 
 type StatementWithDetails = Prisma.LedgerCardStatementGetPayload<{
@@ -69,6 +71,14 @@ function lineFingerprint(line: ReturnType<typeof parseIcbcVisaLayout>["statement
 }
 
 function serializeStatement(statement: StatementWithDetails) {
+  const paidByCurrency = new Map<string, Prisma.Decimal>();
+  for (const allocation of statement.paymentAllocations) {
+    const currency = allocation.currency.trim();
+    paidByCurrency.set(
+      currency,
+      (paidByCurrency.get(currency) ?? new Prisma.Decimal(0)).plus(allocation.amount)
+    );
+  }
   return {
     id: statement.id,
     cardGroup: statement.cardGroup,
@@ -90,6 +100,11 @@ function serializeStatement(statement: StatementWithDetails) {
       reportedTotal: total.reportedTotal.toFixed(2),
       eligibleExclusions: total.eligibleExclusions.toFixed(2),
       payableTotal: total.payableTotal.toFixed(2),
+      paidTotal: (paidByCurrency.get(total.currency.trim()) ?? new Prisma.Decimal(0)).toFixed(2),
+      pendingTotal: Prisma.Decimal.max(
+        total.payableTotal.minus(paidByCurrency.get(total.currency.trim()) ?? 0),
+        0
+      ).toFixed(2),
       residual: total.residual.toFixed(2),
     })),
     lines: statement.lines.map((line) => ({
@@ -217,6 +232,13 @@ export async function createOrReuseCardStatementDraft(input: {
       });
       const statementId = randomUUID();
       const lineIds = parsed.statement.lines.map(() => randomUUID());
+      const categoryRules = await transaction.categoryRule.findMany({
+        where: { isActive: true },
+        select: { id: true, patternNormalized: true, categoryId: true, priority: true },
+      });
+      const matchedCategoryRules = parsed.statement.lines.map((line) =>
+        chooseCategoryRule(line.description, categoryRules)
+      );
 
       await transaction.ledgerCardStatement.create({
         data: {
@@ -258,11 +280,22 @@ export async function createOrReuseCardStatementDraft(input: {
               originalCurrency: line.originalCurrency,
               originalAmount: line.originalAmount,
               installmentInfo: line.installmentInfo,
+              categoryId: matchedCategoryRules[position]?.categoryId ?? null,
               proposedTaxExclusionId: line.resolvesTaxExclusion ?? null,
             })),
           },
         },
       });
+
+      const matchedRuleIds = [...new Set(
+        matchedCategoryRules.flatMap((rule) => rule ? [rule.id] : [])
+      )];
+      if (matchedRuleIds.length > 0) {
+        await transaction.categoryRule.updateMany({
+          where: { id: { in: matchedRuleIds } },
+          data: { lastUsedAt: new Date() },
+        });
+      }
 
       const newIdSet = new Set(newTaxExclusionIds);
       const newExclusions = parsed.statement.taxExclusions.filter((exclusion) =>
