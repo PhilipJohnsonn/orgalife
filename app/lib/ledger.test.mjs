@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   LedgerInvariantError,
+  buildBalanceChangePostings,
+  calculateNativeBalance,
   oppositePostingSide,
   parseCivilDate,
   validateBalancedPostings,
@@ -132,5 +134,52 @@ test("reversal swaps posting sides", () => {
   assert.deepEqual(
     reversal.map((posting) => posting.side),
     ["CREDIT", "DEBIT"]
+  );
+});
+
+test("builds opening and adjustment postings against equity", () => {
+  const asset = buildBalanceChangePostings({
+    ledgerAccountId: "asset",
+    accountKind: "ASSET",
+    equityAccountId: "equity",
+    currency: "ARS",
+    amount: "100.00",
+  });
+  assert.deepEqual(asset.map((posting) => posting.side), ["DEBIT", "CREDIT"]);
+
+  const liability = buildBalanceChangePostings({
+    ledgerAccountId: "liability",
+    accountKind: "LIABILITY",
+    equityAccountId: "equity",
+    currency: "USD",
+    amount: "25.00",
+  });
+  assert.deepEqual(liability.map((posting) => posting.side), ["CREDIT", "DEBIT"]);
+
+  const negativeAsset = buildBalanceChangePostings({
+    ledgerAccountId: "asset",
+    accountKind: "ASSET",
+    equityAccountId: "equity",
+    currency: "ARS",
+    amount: "-10.00",
+  });
+  assert.deepEqual(negativeAsset.map((posting) => posting.side), ["CREDIT", "DEBIT"]);
+});
+
+test("reconstructs native balances and cancels reversed entries", () => {
+  assert.equal(
+    calculateNativeBalance("ASSET", [
+      { side: "DEBIT", amount: "100.00", entryStatus: "POSTED" },
+      { side: "CREDIT", amount: "20.00", entryStatus: "POSTED" },
+      { side: "DEBIT", amount: "50.00", entryStatus: "PROVISIONAL" },
+    ]),
+    "80.00"
+  );
+  assert.equal(
+    calculateNativeBalance("ASSET", [
+      { side: "DEBIT", amount: "100.00", entryStatus: "REVERSED" },
+      { side: "CREDIT", amount: "100.00", entryStatus: "POSTED" },
+    ]),
+    "0.00"
   );
 });

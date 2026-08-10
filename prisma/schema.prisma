@@ -102,6 +102,7 @@ enum LedgerAccountSubtype {
   WALLET
   CARD
   OPENING
+  ADJUSTMENT
   FX
   OTHER
 }
