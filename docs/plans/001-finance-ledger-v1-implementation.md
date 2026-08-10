@@ -194,8 +194,11 @@ Cada tarea tiene una salida observable y una verificación. Una tarea se marca c
 
 ### E2-04 — Ingreso y gasto
 
+- **Estado:** In progress — API/servicio completos en `960c82b`; UI pendiente
 - Servicios, API y UI mínima.
 - **Verificación:** banco/expense/income cuadran y errores mantienen formularios abiertos.
+- **Evidencia parcial:** `/api/finance/v1/transactions` usa importes string, fecha civil, UUID de idempotencia, validación runtime y postings balanceados; 28 unit tests y CI `31386494618` verdes.
+- **Pendiente:** onboarding/formulario/listado v1 y QA de navegador con el MCP directo de Playwright.
 
 ## Etapa 3 — Transferencias, FX y consolidación
 
