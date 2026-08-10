@@ -62,6 +62,17 @@ model Tag {
   tasks Task[]
 }
 
+model Session {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?   @db.VarChar(512)
+
+  @@index([expiresAt])
+}
+
 enum TransactionType {
   INCOME
   EXPENSE
