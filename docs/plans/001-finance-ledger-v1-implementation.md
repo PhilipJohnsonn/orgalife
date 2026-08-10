@@ -17,7 +17,7 @@ Cada tarea tiene una salida observable y una verificación. Una tarea se marca c
 |---|---|---|
 | 0. Contratos y seguridad operativa | Complete | CI bloqueante, backup ensayado, fixtures definidos y spikes registrados |
 | 1. Auth y boundary | Pending | sesiones opacas + auth negativa + bearer MCP aislado |
-| 2. Ledger y cuentas | Pending | invariantes contables + saldos reconstruibles |
+| 2. Ledger y cuentas | In progress | invariantes contables + saldos reconstruibles |
 | 3. Transferencias y FX | Pending | siete movimientos argentinos + consolidación estable |
 | 4. ICBC Visa | Pending | import, conciliación, impuestos, reversión e idempotencia |
 | 5. Tarjeta y proyección | Pending | pago/reasignación sin duplicados |
@@ -168,17 +168,21 @@ Cada tarea tiene una salida observable y una verificación. Una tarea se marca c
 
 ### E2-01 — Schema aditivo del ledger
 
+- **Estado:** Complete — commit `8fc99f4`, CI `31384387172`
 - `AccountGroup`, `LedgerAccount`, `JournalEntry`, `Posting`, categorías y auditoría mínima.
 - `Decimal(18,2)` para importes; `Decimal(18,8)` para rates.
 - Fecha contable `@db.Date`.
 - **Verificación:** migración up sobre base vacía y copia restaurada; schema antiguo sigue legible.
+- **Evidencia:** migración aditiva verde sobre PostgreSQL limpio; `DATE`, `NUMERIC(18,2)`, FK, checks e índices verificados; tablas financieras anteriores conservadas.
 
 ### E2-02 — Motor de postings
 
+- **Estado:** Complete — commit `2bc8e99`, CI `31384912784`
 - Operaciones atómicas e idempotentes.
 - Balance por moneda y convención de signos.
 - Reversal de entries confirmados.
 - **Verificación:** property/table tests de balance para cada operation type.
+- **Evidencia:** 24 unit tests cubren operaciones simples, FX, reversión y casos negativos; servicio Prisma transaccional con idempotencia y reversión sin mutar postings originales; quality gate verde.
 
 ### E2-03 — Accounts y opening balances
 
