@@ -1,7 +1,7 @@
 # Implementation Plan 001: OrgaLife Finance Ledger v1
 
 - **RFC:** [RFC 001](../rfcs/001-finance-ledger-v1.md)
-- **Estado:** In progress — base local de Etapa 0 implementada; gates externos pendientes
+- **Estado:** Etapa 0 complete — listo para iniciar Etapa 1
 - **Rama de trabajo:** `finanzas`
 - **Producción:** no desplegar hasta completar Etapa 7 y el gate de Etapa 8
 - **Datos financieros actuales:** descartables sólo mediante el reset operativo aprobado
@@ -15,7 +15,7 @@ Cada tarea tiene una salida observable y una verificación. Una tarea se marca c
 
 | Etapa | Estado | Gate de salida |
 |---|---|---|
-| 0. Contratos y seguridad operativa | In progress | CI bloqueante, backup ensayado, fixtures definidos y spikes registrados |
+| 0. Contratos y seguridad operativa | Complete | CI bloqueante, backup ensayado, fixtures definidos y spikes registrados |
 | 1. Auth y boundary | Pending | sesiones opacas + auth negativa + bearer MCP aislado |
 | 2. Ledger y cuentas | Pending | invariantes contables + saldos reconstruibles |
 | 3. Transferencias y FX | Pending | siete movimientos argentinos + consolidación estable |
@@ -58,7 +58,7 @@ Cada tarea tiene una salida observable y una verificación. Una tarea se marca c
 
 ### E0-04 — Backup real de producción
 
-- **Estado:** Implemented — no ejecutado contra producción
+- **Estado:** Complete — backup real verificado el 2026-08-10
 - **Dependencias:** E0-01
 - **Salida:** `backup-prod.command` que:
   - usa destino privado fuera del repositorio;
@@ -68,7 +68,7 @@ Cada tarea tiene una salida observable y una verificación. Una tarea se marca c
   - limpia socket/temporales en éxito, error o señal;
   - no borra ni restaura ninguna base.
 - **Verificación local:** `bash -n backup-prod.command` y modo dry-run/config check.
-- **Verificación real:** pendiente de acceso interactivo al VPS; no ejecutarla implícitamente.
+- **Verificación real:** checksum aprobado, permisos `0600`, 7 tablas públicas restauradas en PostgreSQL descartable y `scratch_restore=passed`; el contenedor temporal fue eliminado.
 
 ### E0-05 — Endurecer sincronización destructiva
 
@@ -105,7 +105,7 @@ Cada tarea tiene una salida observable y una verificación. Una tarea se marca c
 
 ### E0-08 — Spikes desde VPS
 
-- **Estado:** Blocked — requiere acceso interactivo/credenciales
+- **Estado:** Complete — ejecutado interactivamente el 2026-08-10
 - **Dependencias:** E0-01
 - **Checks read-only:**
   - DNS/TLS a `accounts.google.com`, `oauth2.googleapis.com` y JWKS;
@@ -114,13 +114,22 @@ Cada tarea tiene una salida observable y una verificación. Una tarea se marca c
   - ausencia de secretos en output.
 - **Salida:** tabla PASS/FAIL con fecha y Plan B activado si corresponde.
 - **Verificación:** ninguna prueba cambia configuración o reinicia servicios.
+- **Resultado:**
+  - `accounts.google.com`: PASS (`302`);
+  - `oauth2.googleapis.com`: PASS de DNS/TLS (`404` por usar GET sobre el endpoint de token);
+  - JWKS de Google: PASS (`200`);
+  - Open Exchange Rates: PASS (`200`);
+  - `PUBLIC_BASE_URL`: MISSING;
+  - `AUTH_PASSWORD` y `AUTH_SECRET`: SET, sin reproducir valores.
+- **Plan B activo:** mantener autenticación por contraseña endurecida hasta configurar `PUBLIC_BASE_URL`; no habilitar Google parcialmente. Open Exchange Rates queda habilitado a nivel de red y puede usar snapshots manuales hasta configurar credenciales.
 
 ### E0-09 — Gate de Etapa 0
 
-- **Estado:** Pending
+- **Estado:** Complete
 - **Dependencias:** E0-02 a E0-08
 - **Criterio:** CI verde, backup restaurado en scratch, fixtures disponibles y spikes documentados.
 - **Excepción:** si Google falla, Etapa 1 usa password endurecido temporal; si FX falla, usa snapshots manuales. Ninguno autoriza fallback inseguro.
+- **Evidencia de cierre:** CI `31375004631` verde; backup productivo con checksum y restore scratch aprobados; cuatro ciclos ICBC anonimizados; conectividad externa probada y Plan B de auth documentado.
 
 ## Etapa 1 — Auth y boundary
 
