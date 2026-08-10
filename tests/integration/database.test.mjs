@@ -76,6 +76,9 @@ test("contains the additive ledger foundation without replacing legacy finance",
       to_regclass('"JournalEntry"')::text AS journal_entry,
       to_regclass('"Posting"')::text AS posting,
       to_regclass('"JournalEntryAudit"')::text AS audit,
+      to_regclass('"ExchangeRateSnapshot"')::text AS exchange_rate,
+      to_regclass('"JournalEntryExchangeRateReference"')::text AS exchange_rate_reference,
+      to_regclass('"FinanceConfiguration"')::text AS finance_configuration,
       to_regclass('"Transaction"')::text AS legacy_transaction
   `);
 
@@ -84,7 +87,32 @@ test("contains the additive ledger foundation without replacing legacy finance",
   assert.equal(result.rows[0]?.journal_entry, '"JournalEntry"');
   assert.equal(result.rows[0]?.posting, '"Posting"');
   assert.equal(result.rows[0]?.audit, '"JournalEntryAudit"');
+  assert.equal(result.rows[0]?.exchange_rate, '"ExchangeRateSnapshot"');
+  assert.equal(
+    result.rows[0]?.exchange_rate_reference,
+    '"JournalEntryExchangeRateReference"'
+  );
+  assert.equal(result.rows[0]?.finance_configuration, '"FinanceConfiguration"');
   assert.equal(result.rows[0]?.legacy_transaction, '"Transaction"');
+});
+
+test("stores FX rates with eight decimal places and civil application dates", async () => {
+  const result = await client.query(`
+    SELECT
+      (SELECT data_type
+       FROM information_schema.columns
+       WHERE table_name = 'ExchangeRateSnapshot' AND column_name = 'appliedOn') AS applied_on_type,
+      (SELECT numeric_precision
+       FROM information_schema.columns
+       WHERE table_name = 'ExchangeRateSnapshot' AND column_name = 'rate') AS rate_precision,
+      (SELECT numeric_scale
+       FROM information_schema.columns
+       WHERE table_name = 'ExchangeRateSnapshot' AND column_name = 'rate') AS rate_scale
+  `);
+
+  assert.equal(result.rows[0]?.applied_on_type, "date");
+  assert.equal(result.rows[0]?.rate_precision, 18);
+  assert.equal(result.rows[0]?.rate_scale, 8);
 });
 
 test("uses civil dates and fixed-scale decimal amounts", async () => {

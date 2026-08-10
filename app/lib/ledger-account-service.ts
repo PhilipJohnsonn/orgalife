@@ -281,11 +281,14 @@ export async function getNativeAccountBalances() {
   const accounts = await prisma.ledgerAccount.findMany({
     where: { isSystem: false },
     include: {
+      accountGroup: {
+        select: { id: true, name: true, region: true, type: true },
+      },
       postings: {
         select: {
           side: true,
           amount: true,
-          journalEntry: { select: { status: true } },
+          journalEntry: { select: { status: true, occurredOn: true } },
         },
       },
     },
@@ -298,6 +301,13 @@ export async function getNativeAccountBalances() {
     currency: account.currency.trim(),
     kind: account.kind,
     trackingMode: account.trackingMode,
+    group: account.accountGroup,
+    lastUpdatedOn:
+      account.postings
+        .map((posting) => posting.journalEntry.occurredOn)
+        .sort((first, second) => second.getTime() - first.getTime())[0]
+        ?.toISOString()
+        .slice(0, 10) ?? null,
     balance: calculateNativeBalance(
       account.kind as LedgerAccountKindValue,
       account.postings.map((posting) => ({
