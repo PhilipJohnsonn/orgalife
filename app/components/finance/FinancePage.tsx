@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Settings } from "lucide-react";
+import { LedgerFinance } from "./LedgerFinance";
 
 const ACCOUNT_COLORS = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#06B6D4", "#6B7280"];
 
@@ -92,7 +93,7 @@ export function FinancePage() {
   }
 
   return (
-    <div className="flex flex-col flex-1 p-4 gap-4">
+    <div className="flex min-w-0 max-w-full flex-1 flex-col gap-4 overflow-x-hidden p-4">
       <div className="flex items-center gap-3 flex-wrap">
         <h1 className="text-xl font-bold shrink-0">Finanzas</h1>
         <div className="flex items-center gap-1.5 ml-auto">
@@ -111,8 +112,9 @@ export function FinancePage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="transacciones" className="flex-1">
-        <TabsList className="mb-4">
+      <Tabs defaultValue="ledger" className="min-w-0 flex-1">
+        <TabsList className="mb-4 flex w-full min-w-0 justify-start overflow-x-auto">
+          <TabsTrigger value="ledger">Finanzas v1</TabsTrigger>
           <TabsTrigger value="transacciones">Transacciones</TabsTrigger>
           <TabsTrigger value="categorias">Categorías</TabsTrigger>
           <TabsTrigger value="tarjetas">
@@ -125,6 +127,10 @@ export function FinancePage() {
           </TabsTrigger>
           <TabsTrigger value="deudas">Deudas</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="ledger">
+          <LedgerFinance />
+        </TabsContent>
 
         <TabsContent value="transacciones">
           <TransactionsList

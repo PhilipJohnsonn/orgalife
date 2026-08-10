@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   RequestValidationError,
+  parseCreateAccountCommand,
   parseIncomeExpenseCommand,
 } from "./finance-v1-contracts.ts";
 
@@ -20,6 +21,25 @@ test("accepts the finance v1 income/expense contract", () => {
   assert.equal(
     parseIncomeExpenseCommand({ ...valid, type: "EXPENSE", categoryId: "food" }).categoryId,
     "food"
+  );
+});
+
+test("validates account onboarding without numeric JSON money", () => {
+  const account = parseCreateAccountCommand({
+    groupName: "ICBC",
+    region: "ARGENTINA",
+    groupType: "BANK",
+    accountName: "ICBC ARS",
+    currency: "ARS",
+    trackingMode: "TRANSACTIONAL",
+    openingBalance: "1000.00",
+    openingOn: "2026-08-10",
+  });
+  assert.equal(account.openingBalance, "1000.00");
+
+  assert.throws(
+    () => parseCreateAccountCommand({ ...account, openingBalance: 1000 }),
+    (error) => error instanceof RequestValidationError
   );
 });
 

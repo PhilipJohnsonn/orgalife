@@ -31,6 +31,13 @@ export type CreateLedgerAccountInput = {
   openingOn?: string;
 };
 
+export type CreateAccountWithGroupInput = Omit<
+  CreateLedgerAccountInput,
+  "accountGroupId"
+> & {
+  group: CreateAccountGroupInput;
+};
+
 export type AdjustLedgerAccountInput = {
   ledgerAccountId: string;
   amount: string;
@@ -103,7 +110,8 @@ export async function createAccountGroup(input: CreateAccountGroupInput) {
   });
 }
 
-export async function createLedgerAccountWithOpeningBalance(
+async function createLedgerAccountInTransaction(
+  transaction: Prisma.TransactionClient,
   input: CreateLedgerAccountInput
 ) {
   validateCurrency(input.currency);
@@ -125,40 +133,78 @@ export async function createLedgerAccountWithOpeningBalance(
     );
   }
 
-  return prisma.$transaction(async (transaction) => {
-    const account = await transaction.ledgerAccount.create({
-      data: {
-        accountGroupId: input.accountGroupId,
-        name,
-        currency: input.currency,
-        kind: input.kind,
-        subtype: input.subtype,
-        trackingMode: input.trackingMode,
-      },
-    });
-    if (openingIsZero) return account;
-
-    const equity = await ensureEquityAccount(transaction, input.currency, "OPENING");
-    const postings = buildBalanceChangePostings({
-      ledgerAccountId: account.id,
-      accountKind: input.kind,
-      equityAccountId: equity.id,
+  const account = await transaction.ledgerAccount.create({
+    data: {
+      accountGroupId: input.accountGroupId,
+      name,
       currency: input.currency,
-      amount: openingBalance,
-    });
+      kind: input.kind,
+      subtype: input.subtype,
+      trackingMode: input.trackingMode,
+    },
+  });
+  if (openingIsZero) return account;
 
-    await transaction.journalEntry.create({
-      data: {
-        operationType: "OPENING_BALANCE",
-        source: "SYSTEM",
-        occurredOn: occurredOn!,
-        description: `Opening balance: ${name}`,
-        idempotencyKey: `opening:${account.id}`,
-        postings: { create: postings.map(postingCreateData) },
+  const equity = await ensureEquityAccount(transaction, input.currency, "OPENING");
+  const postings = buildBalanceChangePostings({
+    ledgerAccountId: account.id,
+    accountKind: input.kind,
+    equityAccountId: equity.id,
+    currency: input.currency,
+    amount: openingBalance,
+  });
+
+  await transaction.journalEntry.create({
+    data: {
+      operationType: "OPENING_BALANCE",
+      source: "SYSTEM",
+      occurredOn: occurredOn!,
+      description: `Opening balance: ${name}`,
+      idempotencyKey: `opening:${account.id}`,
+      postings: { create: postings.map(postingCreateData) },
+    },
+  });
+
+  return account;
+}
+
+export async function createLedgerAccountWithOpeningBalance(
+  input: CreateLedgerAccountInput
+) {
+  return prisma.$transaction((transaction) =>
+    createLedgerAccountInTransaction(transaction, input)
+  );
+}
+
+export async function createAccountWithGroup(input: CreateAccountWithGroupInput) {
+  return prisma.$transaction(async (transaction) => {
+    const groupName = requiredText(input.group.name, "Account group name");
+    const existingGroup = await transaction.accountGroup.findFirst({
+      where: {
+        name: { equals: groupName, mode: "insensitive" },
+        region: input.group.region,
+        type: input.group.type,
+        isActive: true,
       },
     });
-
-    return account;
+    const group = existingGroup ?? await transaction.accountGroup.create({
+      data: {
+        name: groupName,
+        region: input.group.region,
+        type: input.group.type,
+      },
+    });
+    const account = await createLedgerAccountInTransaction(transaction, {
+      accountGroupId: group.id,
+      name: input.name,
+      currency: input.currency,
+      kind: input.kind,
+      subtype: input.subtype,
+      trackingMode: input.trackingMode,
+      openingBalance: input.openingBalance,
+      openingOn: input.openingOn,
+    });
+    return { group, account };
   });
 }
 
