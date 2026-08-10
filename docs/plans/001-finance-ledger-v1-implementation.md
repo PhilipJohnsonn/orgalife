@@ -36,7 +36,7 @@ Cada tarea tiene una salida observable y una verificación. Una tarea se marca c
 
 ### E0-02 — CI bloqueante
 
-- **Estado:** Implemented — pendiente primera ejecución en GitHub
+- **Estado:** Complete — primer gate obligatorio aprobado en GitHub
 - **Dependencias:** E0-01
 - **Cambios:**
   - agregar scripts `typecheck` y `test:integration`;
@@ -45,7 +45,7 @@ Cada tarea tiene una salida observable y una verificación. Una tarea se marca c
   - hacer que `deploy.yml` dependa del workflow CI;
   - dependency audit informativo separado.
 - **Verificación local:** `npm run lint`, `npm run typecheck`, `npm test`, `npm run test:integration` y `npm run build -- --webpack`. El build Turbopack queda cubierto por la primera ejecución en GitHub porque el sandbox local no permite su puerto interno.
-- **Verificación remota:** un fallo del workflow llamado impide ejecutar el job `deploy`.
+- **Verificación remota:** el run `31374245772` aprobó lint, typecheck, unit, migraciones, integración y build Turbopack. El audit informativo reportó 13 advisories y permanece visible sin bloquear este gate.
 
 ### E0-03 — PostgreSQL de integración
 
