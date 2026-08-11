@@ -61,3 +61,590 @@ model Tag {
   color String @default("#6B7280")
   tasks Task[]
 }
+
+model Session {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?   @db.VarChar(512)
+
+  @@index([expiresAt])
+}
+
+enum AccountRegion {
+  ARGENTINA
+  AUSTRALIA
+  GLOBAL
+}
+
+enum AccountGroupType {
+  BANK
+  WALLET
+  CARD
+  OTHER
+}
+
+enum LedgerAccountKind {
+  ASSET
+  LIABILITY
+  RECEIVABLE
+  PAYABLE
+  INCOME
+  EXPENSE
+  EQUITY
+  CLEARING
+}
+
+enum LedgerAccountSubtype {
+  BANK
+  WALLET
+  CARD
+  OPENING
+  ADJUSTMENT
+  FX
+  OTHER
+}
+
+enum AccountTrackingMode {
+  TRANSACTIONAL
+  DECLARED
+}
+
+enum JournalOperationType {
+  INCOME
+  EXPENSE
+  TRANSFER
+  FX
+  CARD_PURCHASE
+  CARD_PAYMENT
+  LOAN
+  SETTLEMENT
+  OPENING_BALANCE
+  ADJUSTMENT
+  REVERSAL
+}
+
+enum JournalEntryStatus {
+  POSTED
+  PROVISIONAL
+  SUPERSEDED
+  DISMISSED
+  REVERSED
+}
+
+enum JournalEntrySource {
+  MANUAL
+  CARD_STATEMENT
+  SYSTEM
+  REVOLUT_API
+}
+
+enum PostingSide {
+  DEBIT
+  CREDIT
+}
+
+enum JournalAuditField {
+  DESCRIPTION
+  CATEGORY
+}
+
+enum LedgerCardStatementStatus {
+  DRAFT
+  CONFIRMED
+  REVERSED
+}
+
+enum CardPaymentPolicy {
+  BY_BILLED_CURRENCY
+}
+
+enum CardStatementLineClassification {
+  PURCHASE
+  ELIGIBLE_USD_TAX
+  PAYABLE_TAX
+  INTEREST
+  FEE
+  PAYMENT_OR_CREDIT
+  PREVIOUS_BALANCE
+  INFORMATIONAL
+  UNKNOWN
+}
+
+enum CardStatementPaymentTreatment {
+  PAYABLE
+  EXCLUDED_FROM_PAYMENT
+  INFORMATIONAL
+  NEEDS_REVIEW
+}
+
+enum TaxExclusionStatus {
+  PENDING_CONFIRMATION
+  CONFIRMED_NOT_CHARGED
+  NEEDS_REVIEW
+  CHARGED
+  CANCELLED
+}
+
+enum TaxExclusionResolution {
+  CREDIT_LINE
+  OMITTED_FROM_BALANCE
+  CHARGED
+  CANCELLED
+}
+
+enum ObligationDirection {
+  RECEIVABLE
+  PAYABLE
+}
+
+enum ObligationOriginType {
+  ACCOUNT_MOVEMENT
+  OPENING_BALANCE
+}
+
+enum CategoryRuleSource {
+  USER_CONFIRMED
+}
+
+enum RecurringFrequency {
+  ONCE
+  WEEKLY
+  MONTHLY
+}
+
+enum RecurringCommitmentStatus {
+  ACTIVE
+  CANCELLED
+}
+
+model AccountGroup {
+  id             String                @id @default(cuid())
+  name           String
+  region         AccountRegion
+  type           AccountGroupType
+  isActive       Boolean               @default(true)
+  accounts       LedgerAccount[]
+  cardStatements LedgerCardStatement[]
+  taxExclusions  TaxExclusion[]
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+}
+
+model LedgerAccount {
+  id                   String                @id @default(cuid())
+  accountGroupId       String?
+  name                 String
+  currency             String                @db.Char(3)
+  kind                 LedgerAccountKind
+  subtype              LedgerAccountSubtype
+  trackingMode         AccountTrackingMode   @default(TRANSACTIONAL)
+  isSystem             Boolean               @default(false)
+  isActive             Boolean               @default(true)
+  accountGroup         AccountGroup?         @relation(fields: [accountGroupId], references: [id], onDelete: Restrict)
+  postings             Posting[]
+  recurringCommitments RecurringCommitment[]
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  @@unique([accountGroupId, currency])
+  @@index([kind, currency])
+}
+
+model JournalEntry {
+  id                         String                              @id @default(cuid())
+  operationType              JournalOperationType
+  status                     JournalEntryStatus                  @default(POSTED)
+  source                     JournalEntrySource
+  occurredOn                 DateTime                            @db.Date
+  description                String
+  idempotencyKey             String?
+  reversalOfId               String?                             @unique
+  metadata                   Json?
+  reversalOf                 JournalEntry?                       @relation("JournalReversal", fields: [reversalOfId], references: [id], onDelete: Restrict)
+  reversedBy                 JournalEntry?                       @relation("JournalReversal")
+  postings                   Posting[]
+  auditEvents                JournalEntryAudit[]
+  exchangeRateReferences     JournalEntryExchangeRateReference[]
+  reconciledStatementLines   LedgerCardStatementLine[]           @relation("StatementLinePaymentEntry")
+  cardPaymentAllocations     CardPaymentAllocation[]
+  provisionalReconciliations CardReconciliation[]                @relation("ProvisionalEntryReconciliation")
+  originatedObligation       Obligation?                         @relation("ObligationOriginEntry")
+  obligationSettlement       ObligationSettlement?
+  createdAt                  DateTime                            @default(now())
+  updatedAt                  DateTime                            @updatedAt
+
+  @@unique([source, idempotencyKey])
+  @@index([occurredOn, status])
+}
+
+model ExchangeRateSnapshot {
+  id                     String                              @id @default(cuid())
+  baseCurrency           String                              @db.Char(3)
+  quoteCurrency          String                              @db.Char(3)
+  rate                   Decimal                             @db.Decimal(18, 8)
+  provider               String
+  observedAt             DateTime
+  appliedOn              DateTime                            @db.Date
+  isManualOverride       Boolean                             @default(false)
+  journalEntryReferences JournalEntryExchangeRateReference[]
+  createdAt              DateTime                            @default(now())
+
+  @@unique([baseCurrency, quoteCurrency, provider, observedAt, isManualOverride])
+  @@index([baseCurrency, quoteCurrency, appliedOn, observedAt])
+}
+
+model JournalEntryExchangeRateReference {
+  journalEntryId String
+  snapshotId     String
+  journalEntry   JournalEntry         @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+  snapshot       ExchangeRateSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
+
+  @@id([journalEntryId, snapshotId])
+  @@index([snapshotId])
+}
+
+model FinanceConfiguration {
+  id           String   @id @default("default")
+  baseCurrency String   @default("USD") @db.Char(3)
+  updatedAt    DateTime @updatedAt
+}
+
+model Posting {
+  id              String                   @id @default(cuid())
+  journalEntryId  String
+  ledgerAccountId String
+  side            PostingSide
+  amount          Decimal                  @db.Decimal(18, 2)
+  categoryId      String?
+  statementLineId String?
+  journalEntry    JournalEntry             @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+  ledgerAccount   LedgerAccount            @relation(fields: [ledgerAccountId], references: [id], onDelete: Restrict)
+  category        Category?                @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  statementLine   LedgerCardStatementLine? @relation(fields: [statementLineId], references: [id], onDelete: Restrict)
+  createdAt       DateTime                 @default(now())
+
+  @@index([journalEntryId])
+  @@index([ledgerAccountId])
+  @@index([categoryId])
+  @@index([statementLineId])
+}
+
+model JournalEntryAudit {
+  id             String            @id @default(cuid())
+  journalEntryId String
+  field          JournalAuditField
+  previousValue  String?
+  newValue       String?
+  journalEntry   JournalEntry      @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+  createdAt      DateTime          @default(now())
+
+  @@index([journalEntryId, createdAt])
+}
+
+model LedgerCardStatement {
+  id                 String                     @id @default(cuid())
+  cardGroupId        String
+  cycleFrom          DateTime?                  @db.Date
+  cycleTo            DateTime?                  @db.Date
+  closingOn          DateTime                   @db.Date
+  dueOn              DateTime                   @db.Date
+  documentHash       String                     @db.Char(64)
+  revision           Int                        @default(1)
+  confirmationKey    String                     @unique @db.Char(64)
+  parserVersion      Int
+  paymentPolicy      CardPaymentPolicy          @default(BY_BILLED_CURRENCY)
+  status             LedgerCardStatementStatus  @default(DRAFT)
+  ignoredPages       Int[]
+  confirmedAt        DateTime?
+  reversedAt         DateTime?
+  cardGroup          AccountGroup               @relation(fields: [cardGroupId], references: [id], onDelete: Restrict)
+  totals             LedgerCardStatementTotal[]
+  lines              LedgerCardStatementLine[]
+  taxExclusions      TaxExclusion[]
+  paymentAllocations CardPaymentAllocation[]
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  @@unique([cardGroupId, documentHash, revision])
+  @@index([cardGroupId, closingOn, status])
+  @@index([status, updatedAt])
+}
+
+model LedgerCardStatementTotal {
+  statementId        String
+  currency           String              @db.Char(3)
+  previousBalance    Decimal             @db.Decimal(18, 2)
+  paymentsAndCredits Decimal             @db.Decimal(18, 2)
+  newCharges         Decimal             @db.Decimal(18, 2)
+  reportedTotal      Decimal             @db.Decimal(18, 2)
+  eligibleExclusions Decimal             @db.Decimal(18, 2)
+  payableTotal       Decimal             @db.Decimal(18, 2)
+  residual           Decimal             @db.Decimal(18, 2)
+  statement          LedgerCardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+
+  @@id([statementId, currency])
+}
+
+model LedgerCardStatementLine {
+  id                       String                           @id @default(cuid())
+  statementId              String
+  position                 Int
+  sourceLine               String
+  fingerprint              String                           @db.Char(64)
+  purchaseOn               DateTime?                        @db.Date
+  billedOn                 DateTime                         @db.Date
+  description              String
+  classification           CardStatementLineClassification
+  paymentTreatment         CardStatementPaymentTreatment
+  billedCurrency           String                           @db.Char(3)
+  billedAmount             Decimal                          @db.Decimal(18, 2)
+  originalCurrency         String?                          @db.Char(3)
+  originalAmount           Decimal?                         @db.Decimal(18, 2)
+  installmentInfo          String?
+  categoryId               String?
+  proposedTaxExclusionId   String?
+  reconciledJournalEntryId String?
+  statement                LedgerCardStatement              @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  category                 Category?                        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  postings                 Posting[]
+  createdTaxExclusion      TaxExclusion?                    @relation("TaxExclusionSourceLine")
+  resolvedTaxExclusion     TaxExclusion?                    @relation("TaxExclusionResolutionLine")
+  proposedTaxExclusion     TaxExclusion?                    @relation("TaxExclusionProposal", fields: [proposedTaxExclusionId], references: [id], onDelete: SetNull)
+  reconciledJournalEntry   JournalEntry?                    @relation("StatementLinePaymentEntry", fields: [reconciledJournalEntryId], references: [id], onDelete: Restrict)
+  cardReconciliations      CardReconciliation[]
+  commitmentObservations   RecurringCommitmentObservation[]
+  createdAt                DateTime                         @default(now())
+  updatedAt                DateTime                         @updatedAt
+
+  @@unique([statementId, sourceLine])
+  @@unique([statementId, position])
+  @@unique([statementId, fingerprint])
+  @@index([proposedTaxExclusionId])
+  @@index([reconciledJournalEntryId])
+}
+
+model TaxExclusion {
+  id                      String                    @id @default(cuid())
+  cardGroupId             String
+  sourceStatementId       String
+  sourceLineId            String                    @unique
+  amount                  Decimal                   @db.Decimal(18, 2)
+  currency                String                    @db.Char(3)
+  status                  TaxExclusionStatus        @default(PENDING_CONFIRMATION)
+  resolution              TaxExclusionResolution?
+  resolutionLineId        String?                   @unique
+  cardGroup               AccountGroup              @relation(fields: [cardGroupId], references: [id], onDelete: Restrict)
+  sourceStatement         LedgerCardStatement       @relation(fields: [sourceStatementId], references: [id], onDelete: Cascade)
+  sourceLine              LedgerCardStatementLine   @relation("TaxExclusionSourceLine", fields: [sourceLineId], references: [id], onDelete: Cascade)
+  resolutionLine          LedgerCardStatementLine?  @relation("TaxExclusionResolutionLine", fields: [resolutionLineId], references: [id], onDelete: SetNull)
+  proposedResolutionLines LedgerCardStatementLine[] @relation("TaxExclusionProposal")
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+
+  @@index([cardGroupId, currency, status])
+  @@index([sourceStatementId])
+}
+
+model CardReconciliation {
+  id                 String                  @id @default(cuid())
+  provisionalEntryId String
+  statementLineId    String
+  releasedAt         DateTime?
+  provisionalEntry   JournalEntry            @relation("ProvisionalEntryReconciliation", fields: [provisionalEntryId], references: [id], onDelete: Restrict)
+  statementLine      LedgerCardStatementLine @relation(fields: [statementLineId], references: [id], onDelete: Restrict)
+  createdAt          DateTime                @default(now())
+
+  @@index([provisionalEntryId, releasedAt])
+  @@index([statementLineId, releasedAt])
+}
+
+model CardPaymentAllocation {
+  id             String              @id @default(cuid())
+  statementId    String
+  journalEntryId String
+  currency       String              @db.Char(3)
+  amount         Decimal             @db.Decimal(18, 2)
+  releasedAt     DateTime?
+  statement      LedgerCardStatement @relation(fields: [statementId], references: [id], onDelete: Restrict)
+  journalEntry   JournalEntry        @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+  createdAt      DateTime            @default(now())
+
+  @@index([statementId, currency, releasedAt])
+  @@index([journalEntryId, currency, releasedAt])
+}
+
+model Obligation {
+  id             String                 @id @default(cuid())
+  direction      ObligationDirection
+  originType     ObligationOriginType
+  counterparty   String
+  description    String
+  currency       String                 @db.Char(3)
+  originalAmount Decimal                @db.Decimal(18, 2)
+  dueOn          DateTime?              @db.Date
+  originEntryId  String?                @unique
+  originEntry    JournalEntry?          @relation("ObligationOriginEntry", fields: [originEntryId], references: [id], onDelete: Restrict)
+  settlements    ObligationSettlement[]
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@index([direction, currency])
+  @@index([dueOn])
+}
+
+model ObligationSettlement {
+  id             String       @id @default(cuid())
+  obligationId   String
+  journalEntryId String       @unique
+  amount         Decimal      @db.Decimal(18, 2)
+  obligation     Obligation   @relation(fields: [obligationId], references: [id], onDelete: Restrict)
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
+  createdAt      DateTime     @default(now())
+
+  @@index([obligationId, createdAt])
+}
+
+model CategoryRule {
+  id                String             @id @default(cuid())
+  patternNormalized String
+  categoryId        String
+  priority          Int                @default(0)
+  source            CategoryRuleSource @default(USER_CONFIRMED)
+  lastUsedAt        DateTime?
+  isActive          Boolean            @default(true)
+  category          Category           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([patternNormalized, categoryId])
+  @@index([isActive, priority])
+}
+
+model RecurringCommitment {
+  id                String                           @id @default(cuid())
+  name              String
+  expectedAmount    Decimal                          @db.Decimal(18, 2)
+  currency          String                           @db.Char(3)
+  frequency         RecurringFrequency
+  startsOn          DateTime                         @db.Date
+  endsOn            DateTime?                        @db.Date
+  categoryId        String?
+  expectedAccountId String?
+  status            RecurringCommitmentStatus        @default(ACTIVE)
+  cancelledAt       DateTime?
+  category          Category?                        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  expectedAccount   LedgerAccount?                   @relation(fields: [expectedAccountId], references: [id], onDelete: Restrict)
+  observations      RecurringCommitmentObservation[]
+  createdAt         DateTime                         @default(now())
+  updatedAt         DateTime                         @updatedAt
+
+  @@index([status, startsOn, endsOn])
+}
+
+model RecurringCommitmentObservation {
+  commitmentId    String
+  statementLineId String                  @unique
+  commitment      RecurringCommitment     @relation(fields: [commitmentId], references: [id], onDelete: Restrict)
+  statementLine   LedgerCardStatementLine @relation(fields: [statementLineId], references: [id], onDelete: Restrict)
+  createdAt       DateTime                @default(now())
+
+  @@id([commitmentId, statementLineId])
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum PaymentMethod {
+  CASH
+  DEBIT
+  CREDIT
+  TRANSFER
+}
+
+model FinancialAccount {
+  id           String        @id @default(cuid())
+  name         String
+  currencies   String[]
+  color        String        @default("#6B7280")
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+}
+
+model CardStatement {
+  id        String        @id @default(cuid())
+  cardName  String
+  amountUSD Float?
+  amountARS Float?
+  dueDate   DateTime?
+  isPaid    Boolean       @default(false)
+  rawText   String?       @db.Text
+  createdAt DateTime      @default(now())
+  expenses  CardExpense[]
+}
+
+model CardExpense {
+  id               String        @id @default(cuid())
+  statementId      String
+  description      String
+  purchaseDate     DateTime?
+  installmentInfo  String?
+  originalCurrency String?
+  originalAmount   Float?
+  amountARS        Float?
+  amountUSD        Float?
+  isExcluded       Boolean       @default(false)
+  excludeReason    String?
+  statement        CardStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  transaction      Transaction?
+}
+
+model Debt {
+  id          String    @id @default(cuid())
+  description String
+  creditor    String?
+  amountUSD   Float?
+  amountARS   Float?
+  isIncluded  Boolean   @default(true)
+  isPaid      Boolean   @default(false)
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model Category {
+  id                   String                    @id @default(cuid())
+  name                 String
+  color                String                    @default("#6B7280")
+  createdAt            DateTime                  @default(now())
+  transactions         Transaction[]
+  postings             Posting[]
+  statementLines       LedgerCardStatementLine[]
+  categoryRules        CategoryRule[]
+  recurringCommitments RecurringCommitment[]
+}
+
+model Transaction {
+  id            String            @id @default(cuid())
+  type          TransactionType
+  description   String
+  amount        Float
+  currency      String
+  amountUSD     Float?
+  date          DateTime
+  isRecurring   Boolean           @default(false)
+  method        PaymentMethod     @default(CASH)
+  cardName      String?
+  accountId     String?
+  categoryId    String?
+  cardExpenseId String?           @unique
+  account       FinancialAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  category      Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  cardExpense   CardExpense?      @relation(fields: [cardExpenseId], references: [id], onDelete: SetNull)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+}

@@ -1,0 +1,31 @@
+{
+  "parser": "ICBC_VISA",
+  "parserVersion": 1,
+  "case": "consecutive-tax-credit-03",
+  "statement": {
+    "closingOn": "2026-03-31",
+    "dueOn": "2026-04-10",
+    "totals": [
+      { "currency": "ARS", "previousBalance": "255.00", "paymentsAndCredits": "-255.00", "newCharges": "375.00", "reportedTotal": "375.00", "eligibleExclusions": "60.00", "payableTotal": "315.00", "residual": "0.00" },
+      { "currency": "USD", "previousBalance": "50.00", "paymentsAndCredits": "-50.00", "newCharges": "70.00", "reportedTotal": "70.00", "eligibleExclusions": "0.00", "payableTotal": "70.00", "residual": "0.00" }
+    ],
+    "lines": [
+      { "sourceLine": "p1:y530:ARS", "purchaseOn": null, "billedOn": "2026-03-31", "description": "SALDO ANTERIOR", "classification": "PREVIOUS_BALANCE", "paymentTreatment": "INFORMATIONAL", "billedCurrency": "ARS", "billedAmount": "255.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null },
+      { "sourceLine": "p1:y530:USD", "purchaseOn": null, "billedOn": "2026-03-31", "description": "SALDO ANTERIOR", "classification": "PREVIOUS_BALANCE", "paymentTreatment": "INFORMATIONAL", "billedCurrency": "USD", "billedAmount": "50.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null },
+      { "sourceLine": "p1:y522", "purchaseOn": null, "billedOn": "2026-03-31", "description": "DEV.IMP. RG 5617 30% (150,00)", "classification": "PAYMENT_OR_CREDIT", "paymentTreatment": "INFORMATIONAL", "billedCurrency": "ARS", "billedAmount": "-45.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null, "resolvesTaxExclusion": "tax-cycle-02" },
+      { "sourceLine": "p1:y514", "purchaseOn": null, "billedOn": "2026-03-31", "description": "SU PAGO EN PESOS", "classification": "PAYMENT_OR_CREDIT", "paymentTreatment": "INFORMATIONAL", "billedCurrency": "ARS", "billedAmount": "-210.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null },
+      { "sourceLine": "p1:y506", "purchaseOn": null, "billedOn": "2026-03-31", "description": "SU PAGO EN USD", "classification": "PAYMENT_OR_CREDIT", "paymentTreatment": "INFORMATIONAL", "billedCurrency": "USD", "billedAmount": "-50.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null },
+      { "sourceLine": "p1:y496", "purchaseOn": "2026-03-12", "billedOn": "2026-03-31", "description": "COMPRA LOCAL EJEMPLO", "classification": "PURCHASE", "paymentTreatment": "PAYABLE", "billedCurrency": "ARS", "billedAmount": "300.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null },
+      { "sourceLine": "p1:y488", "purchaseOn": "2026-03-15", "billedOn": "2026-03-31", "description": "COMERCIO EXTERIOR EJEMPLO", "classification": "PURCHASE", "paymentTreatment": "PAYABLE", "billedCurrency": "USD", "billedAmount": "20.00", "originalCurrency": "THB", "originalAmount": "700.00", "installmentInfo": null },
+      { "sourceLine": "p2:y730", "purchaseOn": "2026-03-20", "billedOn": "2026-03-31", "description": "SERVICIO USD EJEMPLO", "classification": "PURCHASE", "paymentTreatment": "PAYABLE", "billedCurrency": "USD", "billedAmount": "50.00", "originalCurrency": "USD", "originalAmount": "50.00", "installmentInfo": null },
+      { "sourceLine": "p2:y683", "purchaseOn": null, "billedOn": "2026-03-31", "description": "IMPUESTO DE SELLOS", "classification": "PAYABLE_TAX", "paymentTreatment": "PAYABLE", "billedCurrency": "ARS", "billedAmount": "15.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null },
+      { "sourceLine": "p2:y667", "purchaseOn": null, "billedOn": "2026-03-31", "description": "DB.RG 5617 30% (200,00)", "classification": "ELIGIBLE_USD_TAX", "paymentTreatment": "EXCLUDED_FROM_PAYMENT", "billedCurrency": "ARS", "billedAmount": "60.00", "originalCurrency": null, "originalAmount": null, "installmentInfo": null }
+    ],
+    "taxExclusions": [
+      { "key": "tax-cycle-02", "amount": "45.00", "currency": "ARS", "status": "CONFIRMED_NOT_CHARGED", "resolution": "CREDIT_LINE" },
+      { "key": "tax-cycle-03", "amount": "60.00", "currency": "ARS", "status": "PENDING_CONFIRMATION", "resolution": null }
+    ],
+    "ignoredPages": [3, 4],
+    "status": "BALANCED"
+  }
+}

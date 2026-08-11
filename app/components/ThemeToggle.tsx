@@ -1,26 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+const THEME_EVENT = "orgalife-theme-change";
+const DARK_MEDIA_QUERY = "(prefers-color-scheme: dark)";
+
+function getDarkSnapshot() {
+  const stored = localStorage.getItem("theme");
+  return stored === "dark" || (!stored && window.matchMedia(DARK_MEDIA_QUERY).matches);
+}
+
+function subscribeToTheme(onStoreChange: () => void) {
+  const media = window.matchMedia(DARK_MEDIA_QUERY);
+  const handleChange = () => onStoreChange();
+  window.addEventListener("storage", handleChange);
+  window.addEventListener(THEME_EVENT, handleChange);
+  media.addEventListener("change", handleChange);
+
+  return () => {
+    window.removeEventListener("storage", handleChange);
+    window.removeEventListener(THEME_EVENT, handleChange);
+    media.removeEventListener("change", handleChange);
+  };
+}
+
 export function ThemeToggle() {
-  const [dark, setDark] = useState(false);
+  const dark = useSyncExternalStore(subscribeToTheme, getDarkSnapshot, () => false);
 
   useEffect(() => {
-    const stored = localStorage.getItem("theme");
-    const isDark =
-      stored === "dark" ||
-      (!stored && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    setDark(isDark);
-    document.documentElement.classList.toggle("dark", isDark);
-  }, []);
+    document.documentElement.classList.toggle("dark", dark);
+  }, [dark]);
 
   const toggle = () => {
     const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle("dark", next);
     localStorage.setItem("theme", next ? "dark" : "light");
+    window.dispatchEvent(new Event(THEME_EVENT));
   };
 
   return (

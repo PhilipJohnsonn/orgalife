@@ -9,11 +9,11 @@ export default function DashboardLayout({
   return (
     <SidebarProvider>
       <AppSidebar />
-      <main className="flex flex-1 flex-col">
+      <main className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center border-b px-4 py-2">
           <SidebarTrigger />
         </header>
-        <div className="flex flex-1 flex-col">{children}</div>
+        <div className="flex min-w-0 flex-1 flex-col">{children}</div>
       </main>
     </SidebarProvider>
   );

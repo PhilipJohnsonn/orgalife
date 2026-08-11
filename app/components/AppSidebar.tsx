@@ -15,7 +15,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 import { ThemeToggle } from "./ThemeToggle";
-import { LayoutDashboard, KanbanSquare, CalendarDays } from "lucide-react";
+import { LayoutDashboard, KanbanSquare, CalendarDays, Wallet } from "lucide-react";
 
 const navItems = [
   {
@@ -32,6 +32,11 @@ const navItems = [
     title: "Calendar",
     href: "/calendar",
     icon: CalendarDays,
+  },
+  {
+    title: "Finanzas",
+    href: "/finanzas",
+    icon: Wallet,
   },
 ];
 
