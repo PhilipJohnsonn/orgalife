@@ -4,8 +4,8 @@
 
 | Capa | Tecnología | Versión |
 |------|-----------|---------|
-| Frontend + Backend | **Next.js (App Router)** | 16.2.4 |
-| ORM | **Prisma** | 7.7.0 |
+| Frontend + Backend | **Next.js (App Router)** | 16.3.0 |
+| ORM | **Prisma** | 7.9.1 |
 | Base de datos | **PostgreSQL** | 17 (Docker, puerto 5433) |
 | UI | **Tailwind CSS + shadcn/ui** | - |
 | Markdown | **react-markdown + remark-gfm** | - |
