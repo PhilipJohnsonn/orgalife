@@ -1,5 +1,5 @@
-import { FinancePage } from "@/app/components/finance/FinancePage";
+import { redirect } from "next/navigation";
 
 export default function FinanzasPage() {
-  return <FinancePage />;
+  redirect("/finanzas/mes");
 }

@@ -1,3 +1,5 @@
+import { createHash } from "crypto";
+
 export class RequestValidationError extends Error {
   readonly code = "INVALID_PAYLOAD";
 
@@ -509,5 +511,169 @@ export function parseCategorizeStatementLineCommand(input: unknown): CategorizeS
   return {
     categoryId: requiredString(record, "categoryId"),
     learnRule: record.learnRule,
+  };
+}
+
+export type QuickCaptureCommand = {
+  kind: "INCOME" | "EXPENSE";
+  amount: string;
+  currency: string | null;
+  merchant: string;
+  card: string | null;
+  accountId: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  note: string | null;
+  occurredOn: string;
+  idempotencyKey: string;
+};
+
+const CURRENCY_PREFIXES: [RegExp, string][] = [
+  [/^(A\$|AU\$|AUD)/i, "AUD"],
+  [/^(US\$|U\$S|USD)/i, "USD"],
+  [/^(AR\$|ARS)/i, "ARS"],
+  [/^(€|EUR)/i, "EUR"],
+  [/^(£|GBP)/i, "GBP"],
+];
+const CURRENCY_SUFFIXES: [RegExp, string][] = [
+  [/(AUD|A\$)$/i, "AUD"],
+  [/(USD|US\$)$/i, "USD"],
+  [/ARS$/i, "ARS"],
+  [/(EUR|€)$/i, "EUR"],
+  [/(GBP|£)$/i, "GBP"],
+];
+const OCCURRED_AT_PATTERN = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}))?/;
+
+/**
+ * Parses amounts as Wallet and Shortcuts send them ("A$12.50", "$1,234.50",
+ * "12,50", "-12.50"). The sign is ignored: the kind decides the direction.
+ */
+export function parseWalletAmount(input: unknown) {
+  if (typeof input === "number") input = String(input);
+  if (typeof input !== "string" || !input.trim()) {
+    throw new RequestValidationError("amount is required");
+  }
+  let text = input.replace(/\s+/g, "").replace(/^[-+−]/, "");
+  let currency: string | null = null;
+  for (const [pattern, code] of CURRENCY_PREFIXES) {
+    if (pattern.test(text)) {
+      currency = code;
+      text = text.replace(pattern, "");
+      break;
+    }
+  }
+  if (!currency) {
+    for (const [pattern, code] of CURRENCY_SUFFIXES) {
+      if (pattern.test(text)) {
+        currency = code;
+        text = text.replace(pattern, "");
+        break;
+      }
+    }
+  }
+  text = text.replace(/^[-+−]/, "").replace(/^\$/, "");
+
+  const lastDot = text.lastIndexOf(".");
+  const lastComma = text.lastIndexOf(",");
+  let normalized: string;
+  if (lastDot >= 0 && lastComma >= 0) {
+    const decimal = lastDot > lastComma ? "." : ",";
+    const thousands = decimal === "." ? "," : ".";
+    normalized = text.split(thousands).join("").replace(decimal, ".");
+  } else if (lastComma >= 0) {
+    const decimals = text.length - lastComma - 1;
+    normalized =
+      decimals <= 2 && text.indexOf(",") === lastComma
+        ? text.replace(",", ".")
+        : text.split(",").join("");
+  } else {
+    normalized = text;
+  }
+
+  if (!/^\d{1,16}(?:\.\d{1,2})?$/.test(normalized) || Number(normalized) <= 0) {
+    throw new RequestValidationError("amount must be a positive amount");
+  }
+  return { amount: Number(normalized).toFixed(2), currency };
+}
+
+function optionalString(record: Record<string, unknown>, field: string) {
+  const value = record[field];
+  if (value === undefined || value === null) return null;
+  if (typeof value !== "string") {
+    throw new RequestValidationError(`${field} must be a string`);
+  }
+  return value.trim() || null;
+}
+
+function uuidFromHash(value: string) {
+  const hex = createHash("sha256").update(value).digest("hex");
+  const variant = ((parseInt(hex[16], 16) & 0x3) | 0x8).toString(16);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+}
+
+export function parseQuickCaptureCommand(input: unknown): QuickCaptureCommand {
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    throw new RequestValidationError("Body must be an object");
+  }
+  const record = input as Record<string, unknown>;
+  const kind = record.kind ?? "EXPENSE";
+  if (kind !== "INCOME" && kind !== "EXPENSE") {
+    throw new RequestValidationError("kind must be INCOME or EXPENSE");
+  }
+
+  const parsed = parseWalletAmount(record.amount);
+  const explicitCurrency = optionalString(record, "currency")?.toUpperCase() ?? null;
+  if (explicitCurrency && !/^[A-Z]{3}$/.test(explicitCurrency)) {
+    throw new RequestValidationError("currency must be an ISO 4217 code");
+  }
+
+  const merchant = optionalString(record, "merchant");
+  if (!merchant) throw new RequestValidationError("merchant is required");
+
+  const card = optionalString(record, "card");
+  const accountId = optionalString(record, "accountId");
+  if (!card && !accountId) {
+    throw new RequestValidationError("card or accountId is required");
+  }
+
+  const occurredAt = optionalString(record, "occurredAt");
+  const occurredMatch = occurredAt ? OCCURRED_AT_PATTERN.exec(occurredAt) : null;
+  if (!occurredMatch) {
+    throw new RequestValidationError("occurredAt must use YYYY-MM-DD or YYYY-MM-DDTHH:mm");
+  }
+
+  const currency = explicitCurrency ?? parsed.currency;
+  const explicitKey = optionalString(record, "idempotencyKey");
+  if (explicitKey && !UUID_PATTERN.test(explicitKey)) {
+    throw new RequestValidationError("idempotencyKey must be a UUID");
+  }
+  // Shortcuts cannot easily mint UUIDs; retries of the same capture within
+  // the same minute collapse into one entry.
+  const idempotencyKey =
+    explicitKey ??
+    uuidFromHash(
+      [
+        "quick-capture",
+        kind,
+        parsed.amount,
+        currency ?? "",
+        merchant.toUpperCase(),
+        (card ?? accountId ?? "").toUpperCase(),
+        `${occurredMatch[1]}T${occurredMatch[2] ?? ""}`,
+      ].join("|")
+    );
+
+  return {
+    kind,
+    amount: parsed.amount,
+    currency,
+    merchant,
+    card,
+    accountId,
+    categoryId: optionalString(record, "categoryId"),
+    categoryName: optionalString(record, "categoryName"),
+    note: optionalString(record, "note"),
+    occurredOn: occurredMatch[1],
+    idempotencyKey,
   };
 }

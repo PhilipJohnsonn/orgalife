@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   bearerMatches,
+  captureBearerDecision,
   createOpaqueSessionToken,
   hashSessionToken,
   isMcpPathAllowed,
@@ -104,4 +105,26 @@ test("valid MCP bearer is forbidden outside its allowlist", () => {
     mcpBearerDecision("Bearer wrong", "secret", "/api/tasks"),
     null
   );
+});
+
+test("capture bearer is scoped to the quick-capture API", () => {
+  assert.equal(
+    captureBearerDecision("Bearer capture", "capture", "/api/finance/v1/quick-capture"),
+    "allow"
+  );
+  assert.equal(
+    captureBearerDecision("Bearer capture", "capture", "/api/finance/v1/quick-capture/options"),
+    "allow"
+  );
+  assert.equal(
+    captureBearerDecision("Bearer capture", "capture", "/api/finance/v1/quick-capture-evil"),
+    "forbid"
+  );
+  assert.equal(
+    captureBearerDecision("Bearer capture", "capture", "/api/finance/v1/transactions"),
+    "forbid"
+  );
+  assert.equal(captureBearerDecision("Bearer capture", "capture", "/api/tasks"), "forbid");
+  assert.equal(captureBearerDecision("Bearer wrong", "capture", "/api/finance/v1/quick-capture"), null);
+  assert.equal(captureBearerDecision("Bearer capture", undefined, "/api/finance/v1/quick-capture"), null);
 });

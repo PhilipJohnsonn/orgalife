@@ -65,6 +65,22 @@ export function mcpBearerDecision(
   return isMcpPathAllowed(pathname) ? "allow" : "forbid";
 }
 
+const CAPTURE_API_PREFIX = "/api/finance/v1/quick-capture";
+
+export function isCapturePathAllowed(pathname: string) {
+  return pathname === CAPTURE_API_PREFIX || pathname.startsWith(`${CAPTURE_API_PREFIX}/`);
+}
+
+export function captureBearerDecision(
+  header: string | null,
+  configured: string | undefined,
+  pathname: string
+) {
+  if (!bearerMatches(header, configured)) return null;
+
+  return isCapturePathAllowed(pathname) ? "allow" : "forbid";
+}
+
 /** @deprecated Legacy tokens are retained only for the uncommitted Google spike and are never accepted. */
 export function createSessionToken(password?: string, secret?: string) {
   if (!password || !secret) return null;

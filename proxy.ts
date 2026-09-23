@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   COOKIE_NAME,
+  captureBearerDecision,
   hashSessionToken,
   mcpBearerDecision,
   sessionIsActive,
@@ -35,6 +36,16 @@ export async function proxy(request: NextRequest) {
   );
   if (mcpDecision === "allow") return NextResponse.next();
   if (mcpDecision === "forbid") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const captureDecision = captureBearerDecision(
+    authHeader,
+    process.env.CAPTURE_API_KEY,
+    request.nextUrl.pathname
+  );
+  if (captureDecision === "allow") return NextResponse.next();
+  if (captureDecision === "forbid") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

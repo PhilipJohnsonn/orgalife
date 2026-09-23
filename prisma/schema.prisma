@@ -246,6 +246,7 @@ model LedgerAccount {
   accountGroup         AccountGroup?         @relation(fields: [accountGroupId], references: [id], onDelete: Restrict)
   postings             Posting[]
   recurringCommitments RecurringCommitment[]
+  walletCardAliases    WalletCardAlias[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
@@ -647,4 +648,16 @@ model Transaction {
   cardExpense   CardExpense?      @relation(fields: [cardExpenseId], references: [id], onDelete: SetNull)
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
+}
+
+model WalletCardAlias {
+  id              String        @id @default(cuid())
+  label           String
+  aliasNormalized String        @unique
+  ledgerAccountId String
+  ledgerAccount   LedgerAccount @relation(fields: [ledgerAccountId], references: [id], onDelete: Restrict)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([ledgerAccountId])
 }
