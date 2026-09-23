@@ -3,6 +3,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LedgerAccount, Region, postJson, selectClass, today } from "@/app/components/finance/cierre/shared";
@@ -20,6 +28,19 @@ function inferRegion(currency: string): Region {
   return "GLOBAL";
 }
 
+function emptyForm() {
+  return {
+    accountName: "",
+    currency: "ARS",
+    groupType: "BANK",
+    groupName: "",
+    region: "ARGENTINA" as Region,
+    trackingMode: "TRANSACTIONAL",
+    openingBalance: "0.00",
+    openingOn: today(),
+  };
+}
+
 export function AccountsSection({
   accounts,
   loading,
@@ -34,18 +55,17 @@ export function AccountsSection({
   const [error, setError] = useState("");
   const [groupNameEdited, setGroupNameEdited] = useState(false);
   const [regionEdited, setRegionEdited] = useState(false);
-  const [form, setForm] = useState({
-    accountName: "",
-    currency: "ARS",
-    groupType: "BANK",
-    groupName: "",
-    region: "ARGENTINA" as Region,
-    trackingMode: "TRANSACTIONAL",
-    openingBalance: "0.00",
-    openingOn: today(),
-  });
+  const [form, setForm] = useState(emptyForm);
 
   const effectiveRegion = regionEdited ? form.region : inferRegion(form.currency);
+
+  function closeForm() {
+    setForm(emptyForm());
+    setGroupNameEdited(false);
+    setRegionEdited(false);
+    setError("");
+    setShowForm(false);
+  }
 
   async function saveAccount() {
     if (saving) return;
@@ -62,19 +82,7 @@ export function AccountsSection({
         openingBalance: form.openingBalance,
         openingOn: form.openingOn,
       });
-      setForm({
-        accountName: "",
-        currency: "ARS",
-        groupType: "BANK",
-        groupName: "",
-        region: "ARGENTINA",
-        trackingMode: "TRANSACTIONAL",
-        openingBalance: "0.00",
-        openingOn: today(),
-      });
-      setGroupNameEdited(false);
-      setRegionEdited(false);
-      setShowForm(false);
+      closeForm();
       await onCreated();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo crear la cuenta");
@@ -87,12 +95,6 @@ export function AccountsSection({
     <Card>
       <CardHeader><CardTitle className="text-base">Cuentas</CardTitle></CardHeader>
       <CardContent className="space-y-4">
-        {error && (
-          <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-            {error}
-          </p>
-        )}
-
         {loading && <p className="text-sm text-muted-foreground">Cargando cuentas…</p>}
         {!loading && accounts.length === 0 && <p className="text-sm text-muted-foreground">Todavía no creaste ninguna cuenta.</p>}
         <div className="grid gap-2 sm:grid-cols-2">
@@ -109,12 +111,30 @@ export function AccountsSection({
           ))}
         </div>
 
-        <Button variant="outline" onClick={() => setShowForm((value) => !value)}>
-          {showForm ? "Cancelar" : accounts.length ? "Agregar cuenta" : "Crear primera cuenta"}
-        </Button>
+        {!loading && (
+          <Button variant="outline" onClick={() => setShowForm(true)}>
+            {accounts.length ? "Agregar cuenta" : "Crear primera cuenta"}
+          </Button>
+        )}
 
-        {(showForm || (!loading && accounts.length === 0)) && (
-          <div className="grid gap-3 rounded-md border p-3 sm:grid-cols-3">
+        <Dialog open={showForm} onOpenChange={(open) => (open ? setShowForm(true) : closeForm())}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Nueva cuenta</DialogTitle>
+              <DialogDescription>Con nombre, moneda y tipo alcanza. El resto es opcional.</DialogDescription>
+            </DialogHeader>
+            <form
+              className="grid gap-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void saveAccount();
+              }}
+            >
+              {error && (
+                <p role="alert" className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                  {error}
+                </p>
+              )}
             <div>
               <Label htmlFor="accountName">Nombre</Label>
               <Input id="accountName" value={form.accountName} onChange={(event) => setForm({ ...form, accountName: event.target.value })} placeholder="ICBC ARS" />
@@ -128,9 +148,9 @@ export function AccountsSection({
               <select id="groupType" className={selectClass()} value={form.groupType} onChange={(event) => setForm({ ...form, groupType: event.target.value })}><option value="BANK">Banco</option><option value="WALLET">Billetera</option><option value="CARD">Tarjeta</option><option value="OTHER">Otro</option></select>
             </div>
 
-            <details className="sm:col-span-3 rounded-md border p-3">
+            <details className="rounded-md border p-3">
               <summary className="cursor-pointer text-sm font-medium">Más opciones</summary>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div>
                   <Label htmlFor="groupName">Entidad</Label>
                   <Input
@@ -163,9 +183,13 @@ export function AccountsSection({
               </div>
             </details>
 
-            <Button className="sm:col-span-3" onClick={saveAccount} disabled={saving || !form.accountName.trim()}>{saving ? "Guardando..." : "Guardar cuenta"}</Button>
-          </div>
-        )}
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={closeForm}>Cancelar</Button>
+                <Button type="submit" disabled={saving || !form.accountName.trim()}>{saving ? "Guardando..." : "Guardar cuenta"}</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
