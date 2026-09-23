@@ -301,6 +301,7 @@ export async function getNativeAccountBalances() {
     currency: account.currency.trim(),
     kind: account.kind,
     trackingMode: account.trackingMode,
+    isActive: account.isActive,
     group: account.accountGroup,
     lastUpdatedOn:
       account.postings

@@ -6,6 +6,7 @@ export type LedgerAccount = {
   currency: string;
   kind: string;
   trackingMode: string;
+  isActive: boolean;
   balance: string;
   group: {
     id: string;

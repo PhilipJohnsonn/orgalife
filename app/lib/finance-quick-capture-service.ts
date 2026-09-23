@@ -240,6 +240,42 @@ export async function createWalletCardAlias(input: { label: string; ledgerAccoun
   }
 }
 
+export async function updateWalletCardAlias(
+  id: string,
+  input: { label?: string; ledgerAccountId?: string }
+) {
+  const alias = await prisma.walletCardAlias.findUnique({ where: { id } });
+  if (!alias) throw new QuickCaptureError("ALIAS_NOT_FOUND", 404, "Alias no encontrado");
+  const data: { label?: string; aliasNormalized?: string; ledgerAccountId?: string } = {};
+  if (input.label !== undefined) {
+    const label = input.label.trim();
+    const aliasNormalized = normalizeMerchantPattern(label);
+    if (!aliasNormalized) {
+      throw new QuickCaptureError("ALIAS_REQUIRED", 422, "El nombre de la tarjeta es obligatorio");
+    }
+    Object.assign(data, { label, aliasNormalized });
+  }
+  if (input.ledgerAccountId !== undefined) {
+    const account = await prisma.ledgerAccount.findUnique({ where: { id: input.ledgerAccountId } });
+    if (!account || !account.isActive || !isCapturable(account)) {
+      throw new QuickCaptureError("UNSUPPORTED_ACCOUNT", 422, "La cuenta debe ser una cuenta activa o una tarjeta");
+    }
+    data.ledgerAccountId = account.id;
+  }
+  try {
+    return await prisma.walletCardAlias.update({
+      where: { id },
+      data,
+      include: { ledgerAccount: { select: { id: true, name: true, currency: true } } },
+    });
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "P2002") {
+      throw new QuickCaptureError("ALIAS_EXISTS", 409, "Esa tarjeta ya está asociada a una cuenta");
+    }
+    throw error;
+  }
+}
+
 export async function deleteWalletCardAlias(id: string) {
   const alias = await prisma.walletCardAlias.findUnique({ where: { id } });
   if (!alias) throw new QuickCaptureError("ALIAS_NOT_FOUND", 404, "Alias no encontrado");

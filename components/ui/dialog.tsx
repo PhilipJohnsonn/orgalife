@@ -47,6 +47,27 @@ function DialogOverlay({
   )
 }
 
+// iOS keeps the layout viewport when the keyboard opens; only the visual
+// viewport shrinks. Expose its size so dialogs stay within the visible area.
+function useVisualViewportVars() {
+  React.useEffect(() => {
+    const viewport = window.visualViewport
+    if (!viewport) return
+    const root = document.documentElement
+    const update = () => {
+      root.style.setProperty("--visual-viewport-height", `${viewport.height}px`)
+      root.style.setProperty("--visual-viewport-top", `${viewport.offsetTop}px`)
+    }
+    update()
+    viewport.addEventListener("resize", update)
+    viewport.addEventListener("scroll", update)
+    return () => {
+      viewport.removeEventListener("resize", update)
+      viewport.removeEventListener("scroll", update)
+    }
+  }, [])
+}
+
 function DialogContent({
   className,
   children,
@@ -55,13 +76,14 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
 }) {
+  useVisualViewportVars()
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-[calc(var(--visual-viewport-top,0px)+1rem)] left-1/2 z-50 grid max-h-[calc(var(--visual-viewport-height,100dvh)-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 gap-4 overflow-y-auto overscroll-contain sm:top-1/2 sm:max-h-[calc(100dvh-2rem)] sm:-translate-y-1/2 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
