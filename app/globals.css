@@ -129,4 +129,14 @@
   html {
     @apply font-sans;
   }
+  /* iOS Safari gives native date inputs an intrinsic width and height that
+     ignore the utility classes; drop the native appearance so they size like
+     the other fields. */
+  input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input[type="date"]::-webkit-date-and-time-value {
+    text-align: left;
+  }
 }
