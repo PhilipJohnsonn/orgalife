@@ -29,7 +29,6 @@ function emptyForm(prefill: EntityPrefill | null) {
     groupType: prefill?.groupType ?? "BANK",
     groupName: prefill?.groupName ?? "",
     region: prefill?.region ?? ("ARGENTINA" as Region),
-    trackingMode: "TRANSACTIONAL",
     openingBalance: "0.00",
     openingOn: today(),
   };
@@ -73,7 +72,7 @@ export function CreateAccountDialog({
         region: effectiveRegion,
         groupType: prefill ? prefill.groupType : form.groupType,
         currency: form.currency,
-        trackingMode: form.trackingMode,
+        trackingMode: "TRANSACTIONAL",
         openingBalance: form.openingBalance,
         openingOn: form.openingOn,
       });
@@ -174,13 +173,6 @@ export function CreateAccountDialog({
                   </div>
                 </>
               )}
-              <div>
-                <Label htmlFor="trackingMode">Seguimiento</Label>
-                <select id="trackingMode" className={selectClass()} value={form.trackingMode} onChange={(event) => setForm({ ...form, trackingMode: event.target.value })}>
-                  <option value="TRANSACTIONAL">Transaccional</option>
-                  <option value="DECLARED">Declarado</option>
-                </select>
-              </div>
               <div>
                 <Label htmlFor="openingBalance">Saldo actual</Label>
                 <Input id="openingBalance" inputMode="decimal" value={form.openingBalance} onChange={(event) => setForm({ ...form, openingBalance: event.target.value })} />
