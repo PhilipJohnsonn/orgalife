@@ -7,13 +7,13 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,8 +57,7 @@ function destinationAccounts(options: CaptureOptions, sourceAccountId: string) {
   const source = options.accounts.find((account) => account.id === sourceAccountId);
   if (!source) return [];
   return options.accounts.filter(
-    (account) =>
-      account.kind === "ASSET" && account.currency === source.currency && account.id !== sourceAccountId
+    (account) => account.kind === "ASSET" && account.id !== sourceAccountId
   );
 }
 
@@ -99,6 +98,7 @@ export function QuickAdd() {
 
   const [sourceAccountId, setSourceAccountId] = useState("");
   const [destinationAccountId, setDestinationAccountId] = useState("");
+  const [destinationAmount, setDestinationAmount] = useState("");
   const [transferDescription, setTransferDescription] = useState("Transferencia");
 
   const [submitting, setSubmitting] = useState(false);
@@ -144,7 +144,7 @@ export function QuickAdd() {
   useEffect(() => {
     if (!options || mode !== "TRANSFER") return;
     const list = destinationAccounts(options, sourceAccountId);
-    // Resets the selection to a still-valid account when the source/currency changes.
+    // Resets the selection to a still-valid account when the source changes.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDestinationAccountId((current) => (list.some((a) => a.id === current) ? current : (list[0]?.id ?? "")));
   }, [options, mode, sourceAccountId]);
@@ -156,6 +156,16 @@ export function QuickAdd() {
   }, []);
 
   if (!showFab) return null;
+
+  const sourceCurrency = options?.accounts.find((a) => a.id === sourceAccountId)?.currency ?? "";
+  const destinationCurrency = options?.accounts.find((a) => a.id === destinationAccountId)?.currency ?? "";
+  const isFx = mode === "TRANSFER" && Boolean(destinationCurrency) && destinationCurrency !== sourceCurrency;
+  const fxSourceAmount = Number(amount.replace(",", "."));
+  const fxDestinationAmount = Number(destinationAmount.replace(",", "."));
+  const fxHint =
+    isFx && fxSourceAmount > 0 && fxDestinationAmount > 0
+      ? `1 ${sourceCurrency} = ${(fxDestinationAmount / fxSourceAmount).toFixed(4)} ${destinationCurrency}`
+      : null;
 
   function showToast(message: string) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -187,26 +197,40 @@ export function QuickAdd() {
           setFormError("Elegí las dos cuentas.");
           return;
         }
-        const res = await fetch("/api/finance/v1/transfers", {
+        const normalizedDestinationAmount = isFx ? normalizeAmount(destinationAmount) : null;
+        if (isFx && !normalizedDestinationAmount) {
+          setFormError(`Ingresá cuánto llega en ${destinationCurrency}.`);
+          return;
+        }
+        const movement = {
+          sourceAccountId,
+          destinationAccountId,
+          occurredOn: date,
+          description: transferDescription.trim() || "Transferencia",
+          idempotencyKey: crypto.randomUUID(),
+        };
+        // Cross-currency transfers go through FX so each side keeps its own amount.
+        const res = await fetch(isFx ? "/api/finance/v1/fx" : "/api/finance/v1/transfers", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sourceAccountId,
-            destinationAccountId,
-            amount: normalizedAmount,
-            occurredOn: date,
-            description: transferDescription.trim() || "Transferencia",
-            idempotencyKey: crypto.randomUUID(),
-          }),
+          body: JSON.stringify(
+            isFx
+              ? { ...movement, sourceAmount: normalizedAmount, destinationAmount: normalizedDestinationAmount }
+              : { ...movement, amount: normalizedAmount }
+          ),
         });
         const data = await res.json().catch(() => null);
         if (!res.ok) {
           setFormError((data as ApiError | null)?.error?.message ?? "No se pudo registrar la transferencia.");
           return;
         }
-        const sourceCurrency = options.accounts.find((a) => a.id === sourceAccountId)?.currency ?? "";
-        showToast(`Transferencia registrada · ${normalizedAmount} ${sourceCurrency}`.trim());
+        showToast(
+          isFx
+            ? `Transferencia registrada · ${normalizedAmount} ${sourceCurrency} → ${normalizedDestinationAmount} ${destinationCurrency}`
+            : `Transferencia registrada · ${normalizedAmount} ${sourceCurrency}`.trim()
+        );
         setAmount("");
+        setDestinationAmount("");
         setTransferDescription("Transferencia");
       } else {
         if (!merchant.trim()) {
@@ -253,38 +277,37 @@ export function QuickAdd() {
 
   return (
     <>
-      <Sheet open={open} onOpenChange={handleOpenChange}>
-        <SheetTrigger asChild>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogTrigger asChild>
           <Button
             aria-label="Agregar movimiento"
             className="fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 size-14 rounded-full shadow-lg md:right-6 md:bottom-6"
           >
             <Plus className="size-6" aria-hidden />
           </Button>
-        </SheetTrigger>
-        <SheetContent
-          side="bottom"
-          className="max-h-[85vh] overflow-y-auto sm:inset-x-auto sm:left-1/2 sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:rounded-t-2xl"
+        </DialogTrigger>
+        <DialogContent
+          className="sm:max-w-md"
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             amountRef.current?.focus();
           }}
         >
-          <SheetHeader>
-            <SheetTitle>Agregar movimiento</SheetTitle>
-            <SheetDescription className="sr-only">
+          <DialogHeader>
+            <DialogTitle>Agregar movimiento</DialogTitle>
+            <DialogDescription className="sr-only">
               Registrá un gasto, ingreso o transferencia.
-            </SheetDescription>
-          </SheetHeader>
+            </DialogDescription>
+          </DialogHeader>
 
           {!options && optionsLoading && (
-            <p className="px-4 text-sm text-muted-foreground">Cargando…</p>
+            <p className="text-sm text-muted-foreground">Cargando…</p>
           )}
           {!options && optionsError && (
-            <p className="px-4 text-sm text-destructive">{optionsError}</p>
+            <p className="text-sm text-destructive">{optionsError}</p>
           )}
           {options && options.accounts.length === 0 && (
-            <div className="px-4 pb-4 text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground">
               Primero creá una cuenta en{" "}
               <Link
                 href="/finanzas/ajustes"
@@ -298,7 +321,7 @@ export function QuickAdd() {
           )}
 
           {options && options.accounts.length > 0 && (
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-4 pb-4">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <Tabs value={mode} onValueChange={(value) => setMode(value as Mode)}>
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="EXPENSE">Gasto</TabsTrigger>
@@ -308,7 +331,9 @@ export function QuickAdd() {
               </Tabs>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="qa-amount">Monto</Label>
+                <Label htmlFor="qa-amount">
+                  {mode === "TRANSFER" && sourceCurrency ? `Monto (${sourceCurrency})` : "Monto"}
+                </Label>
                 <Input
                   id="qa-amount"
                   ref={amountRef}
@@ -425,7 +450,7 @@ export function QuickAdd() {
                       >
                         {accountsForMode(options, "TRANSFER").map((account) => (
                           <option key={account.id} value={account.id}>
-                            {account.name}
+                            {account.name} ({account.currency})
                           </option>
                         ))}
                       </select>
@@ -440,16 +465,33 @@ export function QuickAdd() {
                         onChange={(event) => setDestinationAccountId(event.target.value)}
                       >
                         {destinationAccounts(options, sourceAccountId).length === 0 && (
-                          <option value="">Sin cuentas en esa moneda</option>
+                          <option value="">Sin otras cuentas</option>
                         )}
                         {destinationAccounts(options, sourceAccountId).map((account) => (
                           <option key={account.id} value={account.id}>
-                            {account.name}
+                            {account.name} ({account.currency})
                           </option>
                         ))}
                       </select>
                     </div>
                   </div>
+
+                  {isFx && (
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="qa-destination-amount">Llega ({destinationCurrency})</Label>
+                      <Input
+                        id="qa-destination-amount"
+                        type="text"
+                        inputMode="decimal"
+                        autoComplete="off"
+                        placeholder="0,00"
+                        className="h-11"
+                        value={destinationAmount}
+                        onChange={(event) => setDestinationAmount(event.target.value)}
+                      />
+                      {fxHint && <p className="text-xs text-muted-foreground">Tipo efectivo: {fxHint}</p>}
+                    </div>
+                  )}
 
                   <p className="text-xs text-muted-foreground">
                     Para pagarle a otra persona (ej. renta) usá Gasto.
@@ -486,8 +528,8 @@ export function QuickAdd() {
               </Button>
             </form>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       {toast && (
         <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 md:bottom-8">
