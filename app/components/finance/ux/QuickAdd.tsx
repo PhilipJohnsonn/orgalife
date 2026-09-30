@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,15 +18,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { ApiError, CaptureOptions } from "./types";
+import { cn } from "@/lib/utils";
+import { EMPTY_SPLIT, SplitEditor, toSplitInput, type SplitDraft } from "./SplitEditor";
+import type { ApiError, CaptureOptions, Person } from "./types";
 
 type Mode = "EXPENSE" | "INCOME" | "TRANSFER";
 
 const QUICK_ADD_ROUTES = ["/finanzas/mes", "/finanzas/movimientos"];
 const NO_CATEGORY = "none";
+const PAID_BY_ME = "me";
 const LAST_ACCOUNT_KEY = "finance-quick-add:last-account";
 const NATIVE_SELECT =
-  "h-11 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 dark:bg-input/30";
+  "h-11 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50 dark:bg-input/30";
 
 function todayLocal() {
   const now = new Date();
@@ -100,6 +103,11 @@ export function QuickAdd() {
   const [destinationAmount, setDestinationAmount] = useState("");
   const [transferDescription, setTransferDescription] = useState("Transferencia");
 
+  const [people, setPeople] = useState<Person[]>([]);
+  const [sharedOpen, setSharedOpen] = useState(false);
+  const [split, setSplit] = useState<SplitDraft>(EMPTY_SPLIT);
+  const [paidBy, setPaidBy] = useState(PAID_BY_ME);
+
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -113,12 +121,16 @@ export function QuickAdd() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setOptionsLoading(true);
     setOptionsError(null);
-    fetch("/api/finance/v1/quick-capture/options", { cache: "no-store" })
-      .then((res) => {
-        if (!res.ok) throw new Error("load_failed");
-        return res.json() as Promise<CaptureOptions>;
+    Promise.all([
+      fetch("/api/finance/v1/quick-capture/options", { cache: "no-store" }),
+      fetch("/api/finance/v1/people", { cache: "no-store" }),
+    ])
+      .then(async ([optionsRes, peopleRes]) => {
+        if (!optionsRes.ok || !peopleRes.ok) throw new Error("load_failed");
+        const [data, list] = (await Promise.all([optionsRes.json(), peopleRes.json()])) as [CaptureOptions, Person[]];
+        setPeople(list);
+        setOptions(data);
       })
-      .then((data) => setOptions(data))
       .catch(() => setOptionsError("No se pudieron cargar las cuentas. Intentá de nuevo."))
       .finally(() => setOptionsLoading(false));
   }, [open, options, optionsLoading]);
@@ -159,6 +171,11 @@ export function QuickAdd() {
   const sourceCurrency = options?.accounts.find((a) => a.id === sourceAccountId)?.currency ?? "";
   const destinationCurrency = options?.accounts.find((a) => a.id === destinationAccountId)?.currency ?? "";
   const isFx = mode === "TRANSFER" && Boolean(destinationCurrency) && destinationCurrency !== sourceCurrency;
+  const isShared = mode === "EXPENSE" && sharedOpen;
+  const paidByPerson = isShared && paidBy !== PAID_BY_ME ? paidBy : null;
+  const accountCurrency = options?.accounts.find((a) => a.id === accountId)?.currency ?? currency;
+  // Paid by you, the debt stays in the account's currency; someone else pays in the currency you pick.
+  const sharedCurrency = paidByPerson ? currency : accountCurrency;
   const fxSourceAmount = Number(amount.replace(",", "."));
   const fxDestinationAmount = Number(destinationAmount.replace(",", "."));
   const fxHint =
@@ -235,6 +252,42 @@ export function QuickAdd() {
         setAmount("");
         setDestinationAmount("");
         setTransferDescription("Transferencia");
+      } else if (isShared) {
+        if (!merchant.trim()) {
+          setFormError("Escribí una descripción.");
+          return;
+        }
+        if (!paidByPerson && !accountId) {
+          setFormError("Elegí una cuenta.");
+          return;
+        }
+        const res = await fetch("/api/finance/v1/shared-expenses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: normalizedAmount,
+            occurredOn: date,
+            description: [merchant.trim(), note.trim() ? `— ${note.trim()}` : null].filter(Boolean).join(" "),
+            ...(categoryId !== NO_CATEGORY ? { categoryId } : {}),
+            idempotencyKey: crypto.randomUUID(),
+            paidBy: paidByPerson ? { personId: paidByPerson, currency } : { accountId },
+            split: toSplitInput(split, paidByPerson ? [paidByPerson] : []),
+          }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          setFormError((data as ApiError | null)?.error?.message ?? "No se pudo guardar el gasto compartido.");
+          return;
+        }
+        if (!paidByPerson) writeLastAccountId(accountId);
+        const { metadata } = data as { metadata: { currency: string; split: { me: string } } };
+        showToast(`Gasto compartido · tu parte ${metadata.split.me} ${metadata.currency}`);
+        setAmount("");
+        setMerchant("");
+        setNote("");
+        setSplit(EMPTY_SPLIT);
+        setPaidBy(PAID_BY_ME);
+        setSharedOpen(false);
       } else {
         if (!merchant.trim()) {
           setFormError("Escribí una descripción.");
@@ -363,33 +416,36 @@ export function QuickAdd() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1.5">
-                      <Label htmlFor="qa-account">Cuenta</Label>
-                      <select
-                        id="qa-account"
-                        className={NATIVE_SELECT}
-                        value={accountId}
-                        onChange={(event) => {
-                          const id = event.target.value;
-                          setAccountId(id);
-                          const account = options.accounts.find((a) => a.id === id);
-                          if (account) setCurrency(account.currency);
-                        }}
-                      >
-                        {accountsForMode(options, mode).map((account) => (
-                          <option key={account.id} value={account.id}>
-                            {account.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    {!paidByPerson && (
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="qa-account">Cuenta</Label>
+                        <select
+                          id="qa-account"
+                          className={NATIVE_SELECT}
+                          value={accountId}
+                          onChange={(event) => {
+                            const id = event.target.value;
+                            setAccountId(id);
+                            const account = options.accounts.find((a) => a.id === id);
+                            if (account) setCurrency(account.currency);
+                          }}
+                        >
+                          {accountsForMode(options, mode).map((account) => (
+                            <option key={account.id} value={account.id}>
+                              {account.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
 
                     <div className="flex flex-col gap-1.5">
                       <Label htmlFor="qa-currency">Moneda</Label>
                       <select
                         id="qa-currency"
                         className={NATIVE_SELECT}
-                        value={currency}
+                        value={isShared ? sharedCurrency : currency}
+                        disabled={isShared && !paidByPerson}
                         onChange={(event) => setCurrency(event.target.value)}
                       >
                         {options.currencies.map((code) => (
@@ -439,6 +495,54 @@ export function QuickAdd() {
                       onChange={(event) => setNote(event.target.value)}
                     />
                   </div>
+
+                  {mode === "EXPENSE" && (
+                    <div className="flex flex-col gap-3 rounded-lg border border-border">
+                      <button
+                        type="button"
+                        aria-expanded={sharedOpen}
+                        onClick={() => setSharedOpen((current) => !current)}
+                        className="flex min-h-11 items-center justify-between gap-2 px-3 text-left text-sm font-medium"
+                      >
+                        Compartido
+                        <ChevronDown
+                          className={cn("size-4 text-muted-foreground transition-transform", sharedOpen && "rotate-180")}
+                          aria-hidden
+                        />
+                      </button>
+                      {sharedOpen && (
+                        <div className="flex flex-col gap-3 px-3 pb-3">
+                          {people.length > 0 && (
+                            <div className="flex flex-col gap-1.5">
+                              <Label htmlFor="qa-paid-by">Pagó</Label>
+                              <select
+                                id="qa-paid-by"
+                                className={NATIVE_SELECT}
+                                value={paidBy}
+                                onChange={(event) => setPaidBy(event.target.value)}
+                              >
+                                <option value={PAID_BY_ME}>Yo</option>
+                                {people.map((person) => (
+                                  <option key={person.id} value={person.id}>
+                                    {person.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                          <SplitEditor
+                            people={people}
+                            draft={split}
+                            onChange={setSplit}
+                            total={normalizeAmount(amount)}
+                            currency={sharedCurrency}
+                            requiredIds={paidByPerson ? [paidByPerson] : []}
+                            onNavigate={() => setOpen(false)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               ) : (
                 <>

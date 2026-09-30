@@ -19,10 +19,13 @@ export function CategorySheet({
   movement,
   onClose,
   onSelect,
+  onSplit,
 }: {
   movement: MonthMovement | null;
   onClose: () => void;
   onSelect: (category: PickedCategory, learnRule: boolean) => void;
+  /** Shown only for expenses that can still be split. */
+  onSplit?: () => void;
 }) {
   const [categories, setCategories] = useState<CaptureOptions["categories"] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -152,6 +155,11 @@ export function CategorySheet({
               </Button>
             </div>
             {createError && <p className="text-sm text-destructive">{createError}</p>}
+            {onSplit && (
+              <Button type="button" variant="outline" className="h-11 w-full" onClick={onSplit}>
+                Dividir
+              </Button>
+            )}
           </div>
         )}
       </SheetContent>

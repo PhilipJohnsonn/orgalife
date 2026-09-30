@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { CategorySheet } from "./CategorySheet";
 import { dayLabel, formatMoney } from "./format";
 import { MonthPicker } from "./MonthPicker";
+import { SplitDialog } from "./SplitDialog";
 import type { ApiError, MonthMovement } from "./types";
 import { useMonth } from "./useMonth";
 
@@ -70,6 +71,12 @@ function MovementRow({ movement, onSelect }: { movement: MonthMovement; onSelect
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{movement.description}</p>
         {movement.account && <p className="truncate text-xs text-muted-foreground">{movement.account.name}</p>}
+        {movement.shared && (
+          <p className="truncate text-xs text-muted-foreground">
+            Total {formatMoney(movement.shared.total, movement.currency)} · tu parte{" "}
+            {formatMoney(movement.shared.myShare, movement.currency)}
+          </p>
+        )}
         {(clickable || movement.status === "PROVISIONAL") && (
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             {clickable && (
@@ -116,6 +123,7 @@ export function MovementsView() {
   const [error, setError] = useState<string | null>(null);
   const [patchError, setPatchError] = useState<string | null>(null);
   const [activeMovement, setActiveMovement] = useState<MonthMovement | null>(null);
+  const [splitMovement, setSplitMovement] = useState<MonthMovement | null>(null);
 
   // Reset stale data during render when the month changes, so the fetch effect below
   // never shows a previous month's movements under the new month header.
@@ -318,6 +326,23 @@ export function MovementsView() {
         movement={activeMovement}
         onClose={() => setActiveMovement(null)}
         onSelect={(category, learnRule) => activeMovement && handleCategorized(activeMovement.id, category, learnRule)}
+        onSplit={
+          activeMovement?.splittable
+            ? () => {
+                setSplitMovement(activeMovement);
+                setActiveMovement(null);
+              }
+            : undefined
+        }
+      />
+
+      <SplitDialog
+        movement={splitMovement}
+        onClose={() => setSplitMovement(null)}
+        onSplit={() => {
+          setSplitMovement(null);
+          window.dispatchEvent(new Event("finance:changed"));
+        }}
       />
     </div>
   );

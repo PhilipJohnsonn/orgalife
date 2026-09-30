@@ -40,7 +40,14 @@ export type MonthMovement = {
   destinationAccount: { id: string; name: string; amount: string; currency: string } | null;
   category: { id: string; name: string; color: string } | null;
   categorizable: boolean;
+  /** An expense that "Dividir" can turn into a shared one. */
+  splittable: boolean;
+  /** Shared expenses: `amount` is your part, `total` what was paid in all. */
+  shared: { total: string; myShare: string } | null;
 };
+
+/** GET /api/finance/v1/people */
+export type Person = { id: string; name: string };
 
 /** GET /api/finance/v1/quick-capture/options */
 export type CaptureOptions = {

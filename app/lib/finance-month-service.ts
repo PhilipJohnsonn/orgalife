@@ -194,12 +194,14 @@ export async function listMonthMovements(month: string) {
     where: {
       occurredOn: { gte: from, lte: to },
       status: { notIn: [...EXCLUDED_STATUSES] },
-      operationType: { in: ["INCOME", "EXPENSE", "CARD_PURCHASE", "TRANSFER", "FX"] },
+      operationType: { in: ["INCOME", "EXPENSE", "CARD_PURCHASE", "SHARED_EXPENSE", "TRANSFER", "FX"] },
     },
     include: {
       postings: {
         include: {
-          ledgerAccount: { select: { id: true, name: true, kind: true, currency: true, isSystem: true } },
+          ledgerAccount: {
+            select: { id: true, name: true, kind: true, currency: true, isSystem: true, person: { select: { name: true } } },
+          },
           category: { select: { id: true, name: true, color: true } },
         },
       },
@@ -218,6 +220,28 @@ export async function listMonthMovements(month: string) {
       occurredOn: entry.occurredOn.toISOString().slice(0, 10),
       description: entry.description,
     };
+    if (entry.operationType === "SHARED_EXPENSE") {
+      // Your part is the expense posting (none when you paid only for others).
+      const metadata = entry.metadata as { total: string; currency: string; split: { me: string } };
+      const payer = userPostings.find((posting) => posting.side === "CREDIT");
+      return {
+        ...base,
+        kind: "EXPENSE" as const,
+        amount: flowPosting?.amount.toFixed(2) ?? "0.00",
+        currency: metadata.currency,
+        account: payer
+          ? {
+              id: payer.ledgerAccount.id,
+              name: payer.ledgerAccount.person ? `Pagó ${payer.ledgerAccount.person.name}` : payer.ledgerAccount.name,
+            }
+          : null,
+        destinationAccount: null,
+        category: flowPosting?.category ?? null,
+        categorizable: Boolean(flowPosting),
+        splittable: false,
+        shared: { total: metadata.total, myShare: metadata.split.me },
+      };
+    }
     if (flowPosting) {
       const userPosting = userPostings[0];
       return {
@@ -229,6 +253,13 @@ export async function listMonthMovements(month: string) {
         destinationAccount: null,
         category: flowPosting.category,
         categorizable: true,
+        // Mirrors splitExistingEntry: a confirmed manual expense with one payer.
+        splittable:
+          ["EXPENSE", "CARD_PURCHASE"].includes(entry.operationType) &&
+          entry.source === "MANUAL" &&
+          entry.status === "POSTED" &&
+          entry.postings.length === 2,
+        shared: null,
       };
     }
     const source = userPostings.find((posting) => posting.side === "CREDIT");
@@ -249,6 +280,8 @@ export async function listMonthMovements(month: string) {
         : null,
       category: null,
       categorizable: false,
+      splittable: false,
+      shared: null,
     };
   });
 }

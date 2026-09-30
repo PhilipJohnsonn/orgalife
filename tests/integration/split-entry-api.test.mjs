@@ -43,6 +43,10 @@ async function accountBalance(id) {
   return (await (await api("/accounts")).json()).find((account) => account.id === id).balance;
 }
 
+async function movementsIn(month) {
+  return (await api(`/monthly-movements?month=${month}`)).json();
+}
+
 async function expensesIn(month) {
   return (await (await api(`/monthly-summary?month=${month}`)).json()).current.native.expenses;
 }
@@ -119,6 +123,9 @@ test("splitting a captured expense reverses it and counts only your part", { ski
   });
   assert.equal(expense.status, 201);
   assert.deepEqual(await expensesIn("2034-02"), [{ currency: "AUD", amount: "90.00" }]);
+  const [captured] = await movementsIn("2034-02");
+  assert.equal(captured.splittable, true);
+  assert.equal(captured.shared, null);
 
   const split = await post(`/entries/${expense.body.id}/split`, { split: equalSplit(ANA, BETO) });
   assert.equal(split.status, 201);
@@ -133,6 +140,13 @@ test("splitting a captured expense reverses it and counts only your part", { ski
   assert.deepEqual(await expensesIn("2034-02"), [{ currency: "AUD", amount: "30.00" }]);
   assert.equal(await balanceOf(ANA, "AUD"), "30.00");
   assert.equal(await balanceOf(BETO, "AUD"), "30.00");
+  const movements = await movementsIn("2034-02");
+  assert.equal(movements.length, 1, "the reversed original leaves Movimientos");
+  assert.equal(movements[0].id, split.body.id);
+  assert.equal(movements[0].kind, "EXPENSE");
+  assert.equal(movements[0].amount, "30.00");
+  assert.deepEqual(movements[0].shared, { total: "90.00", myShare: "30.00" });
+  assert.equal(movements[0].splittable, false);
 
   const again = await post(`/entries/${expense.body.id}/split`, { split: equalSplit(ANA) });
   assert.equal(again.body.id, split.body.id, "splitting twice returns the first split");
