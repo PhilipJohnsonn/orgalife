@@ -81,7 +81,7 @@ Un sueldo australiano es un *Ingreso* con el neto que te cayó en la cuenta.
 ## Comportamiento del servidor
 
 - `amount` acepta el formato que manda Wallet: `A$12.50`, `$12.50`, `12,50`. Si el importe no trae la moneda, se usa la de la cuenta.
-- Tarjeta ICBC (cuenta de tarjeta): se registra como **compra provisional** en la moneda que factura la tarjeta. Una compra en AUD se convierte a USD con la última cotización cargada y se reconcilia al importar el resumen.
+- Tarjeta ICBC (cuenta de tarjeta): se registra como **compra confirmada** contra la tarjeta, en la moneda que factura. Una compra en AUD se convierte a USD con la última cotización cargada. No se reconcilia con el resumen.
 - Si el atajo reintenta el mismo pago dentro del mismo minuto, no se duplica.
 - Si no mandás categoría y el comercio tiene una regla aprendida, se aplica sola. Las reglas se aprenden al recategorizar en **Movimientos** con "Recordar para …" activado.
 

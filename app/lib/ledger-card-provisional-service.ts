@@ -46,8 +46,18 @@ async function ensureExpenseAccount(
   });
 }
 
-export async function recordProvisionalCardPurchase(
-  command: ProvisionalCardPurchaseCommand
+export async function recordProvisionalCardPurchase(command: ProvisionalCardPurchaseCommand) {
+  return recordCardPurchaseEntry(command, "PROVISIONAL");
+}
+
+/** A card purchase recorded at the moment: posted against the card, no statement reconciliation. */
+export async function recordCardPurchase(command: ProvisionalCardPurchaseCommand) {
+  return recordCardPurchaseEntry(command, "POSTED");
+}
+
+async function recordCardPurchaseEntry(
+  command: ProvisionalCardPurchaseCommand,
+  status: "PROVISIONAL" | "POSTED"
 ) {
   return prisma.$transaction(async (transaction) => {
     const existing = await transaction.journalEntry.findFirst({
@@ -112,7 +122,7 @@ export async function recordProvisionalCardPurchase(
       data: {
         operationType: "CARD_PURCHASE",
         source: "MANUAL",
-        status: "PROVISIONAL",
+        status,
         occurredOn: parseCivilDate(command.occurredOn),
         description: command.description,
         idempotencyKey: command.idempotencyKey,

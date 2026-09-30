@@ -47,7 +47,7 @@ App personal: tareas (kanban), calendario y finanzas. UI en español rioplatense
 Especificación: `docs/rfcs/001-finance-ledger-v1.md`.
 
 - El ledger de doble entrada es la fuente de verdad. Transferencias, FX y pagos de tarjeta no son gastos.
-- ICBC Visa se paga por moneda facturada (USD con USD, ARS con ARS). Una compra con tarjeta capturada se registra como provisional en la moneda facturada y se reconcilia al importar el resumen.
+- ICBC Visa se paga por moneda facturada (USD con USD, ARS con ARS). Una compra con tarjeta capturada (+ o Apple Pay) se registra confirmada en el momento, en la moneda facturada. El usuario no importa resúmenes: la importación y reconciliación de resúmenes existen pero no se usan.
 - Impuestos elegibles de consumos USD se excluyen cuando el saldo USD se cancela con USD.
 - Suscripciones/compromisos son informativos: no crean movimientos.
 - No inventar saldos ni usar ajustes contra equity para ocultar diferencias. Rendimientos se registran como ingreso "Rendimientos" vía "Actualizar saldo".
