@@ -127,3 +127,38 @@ export async function removePerson(id: string) {
   ]);
   return { result: "ARCHIVED" as const };
 }
+
+const HIDDEN_STATUSES = ["SUPERSEDED", "DISMISSED", "REVERSED"] as const;
+
+/**
+ * Shared expenses and settlements, newest first, with what each one did to
+ * every person's balance (positive = they owe you more), read from postings.
+ */
+export async function listPeopleHistory(limit = 100) {
+  const entries = await prisma.journalEntry.findMany({
+    where: {
+      operationType: { in: ["SHARED_EXPENSE", "PERSON_SETTLEMENT"] },
+      status: { notIn: [...HIDDEN_STATUSES] },
+    },
+    include: {
+      postings: {
+        where: { ledgerAccount: { personId: { not: null } } },
+        include: { ledgerAccount: { select: { currency: true, person: { select: { id: true, name: true } } } } },
+      },
+    },
+    orderBy: [{ occurredOn: "desc" }, { createdAt: "desc" }],
+    take: limit,
+  });
+  return entries.map((entry) => ({
+    id: entry.id,
+    kind: entry.operationType as "SHARED_EXPENSE" | "PERSON_SETTLEMENT",
+    occurredOn: entry.occurredOn.toISOString().slice(0, 10),
+    description: entry.description,
+    people: entry.postings.map((posting) => ({
+      personId: posting.ledgerAccount.person!.id,
+      name: posting.ledgerAccount.person!.name,
+      currency: posting.ledgerAccount.currency.trim(),
+      amount: (posting.side === "DEBIT" ? posting.amount : posting.amount.neg()).toFixed(2),
+    })),
+  }));
+}

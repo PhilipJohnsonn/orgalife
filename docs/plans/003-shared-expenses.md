@@ -31,6 +31,7 @@ Objetivo: dividir gastos con otras personas (partes iguales por defecto), regist
 - `EnabledCurrency` (`code` ISO 4217, `createdAt`); `GET/POST/DELETE /api/finance/v1/currencies`.
 - `Person` (`name`, `archivedAt`); `LedgerAccount.personId`; `LedgerAccountSubtype.PERSON`; CRUD `/api/finance/v1/people`.
 - `JournalOperationType`: `SHARED_EXPENSE`, `PERSON_SETTLEMENT`.
+- `GET /api/finance/v1/people/history`: compartidos y saldos vigentes, con el efecto por persona y moneda (positivo = te debe más), leído de los postings.
 
 ## Pasos
 

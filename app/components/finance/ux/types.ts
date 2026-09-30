@@ -57,3 +57,17 @@ export type CaptureOptions = {
 };
 
 export type ApiError = { error: { code: string; message: string } };
+
+export type PersonBalance = { currency: string; balance: string };
+
+/** GET /api/finance/v1/people/balances — positive balance = te debe. */
+export type PersonWithBalances = Person & { balances: PersonBalance[]; netAud: string | null };
+
+/** GET /api/finance/v1/people/history */
+export type PeopleHistoryEntry = {
+  id: string;
+  kind: "SHARED_EXPENSE" | "PERSON_SETTLEMENT";
+  occurredOn: string;
+  description: string;
+  people: { personId: string; name: string; currency: string; amount: string }[];
+};

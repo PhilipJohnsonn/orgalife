@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { CalendarRange, ListChecks, ReceiptText, Settings } from "lucide-react";
+import { CalendarRange, ListChecks, ReceiptText, Settings, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const tabs = [
   { href: "/finanzas/mes", label: "Mes", icon: CalendarRange, keepsMonth: true },
   { href: "/finanzas/movimientos", label: "Movimientos", icon: ListChecks, keepsMonth: true },
+  { href: "/finanzas/compartidos", label: "Compartidos", icon: Users, keepsMonth: false },
   { href: "/finanzas/cierre", label: "Cierre", icon: ReceiptText, keepsMonth: false },
   { href: "/finanzas/ajustes", label: "Ajustes", icon: Settings, keepsMonth: false },
 ];
@@ -46,7 +47,7 @@ export function FinanceNav({ variant }: { variant: "top" | "bottom" }) {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
       aria-label="Finanzas"
     >
       {items.map((item) => (

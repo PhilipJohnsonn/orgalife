@@ -161,3 +161,18 @@ test("balances endpoint adds an approximate AUD net", { skip }, async () => {
   assert.deepEqual(ana.balances, [{ currency: "AUD", balance: "20.00" }]);
   assert.equal(ana.netAud, "20.00");
 });
+
+test("history lists shared expenses and settlements with each person's signed effect", { skip }, async () => {
+  const history = await (await api("/people/history")).json();
+  const mine = history.filter((entry) => entryIds.includes(entry.id));
+  const find = (description) => mine.find((entry) => entry.description === description);
+
+  assert.deepEqual(find("Integration cena").people, [{ personId: ANA, name: "Integration Ana S", currency: "AUD", amount: "30.00" }]);
+  assert.equal(find("Integration cena").kind, "SHARED_EXPENSE");
+  assert.deepEqual(find("Integration hotel").people.map((item) => [item.currency, item.amount]), [["EUR", "-30.00"]]);
+  const paid = find("Le pagaste a Integration Beto S");
+  assert.equal(paid.kind, "PERSON_SETTLEMENT");
+  assert.deepEqual(paid.people.map((item) => [item.currency, item.amount]), [["EUR", "30.00"]]);
+  const received = mine.filter((entry) => entry.description === "Integration Ana S te pagó");
+  assert.deepEqual(received.map((entry) => entry.people[0].amount).sort(), ["-10.00", "-20.00"]);
+});
