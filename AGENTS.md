@@ -16,7 +16,7 @@ App personal: tareas (kanban), calendario y finanzas. UI en español rioplatense
 
 - Next.js 16 (App Router, `proxy.ts` en lugar de middleware), React 19, Tailwind 4, shadcn/ui (`components/ui`), lucide-react.
 - Prisma 7 con `@prisma/adapter-pg`; `prisma`, `@prisma/client` y `@prisma/adapter-pg` van siempre en la misma versión. Cliente generado en `app/generated/prisma` (no versionado).
-- PostgreSQL 17. Local: `docker compose -f docker-compose.dev.yml up -d` (contenedor `orgalife-db`, puerto 5433, datos en `./data`).
+- PostgreSQL 17. Local: `docker compose -f docker-compose.dev.yml up -d` (contenedor `orgalife-db`, puerto 5434, datos en `./data`).
 - MCP server propio en `mcp-server/` (tools de tareas vía REST).
 
 ## Comandos
@@ -34,6 +34,7 @@ App personal: tareas (kanban), calendario y finanzas. UI en español rioplatense
 - ESLint activa `react-hooks/set-state-in-effect`.
 - Finanzas UI: `app/components/finance/ux` (Mes, Movimientos, botón +), `cierre/` y `ajustes/`. Formularios de alta y edición en `Dialog`; labels de botones fijos.
 - Selects dentro de sheets/dialogs móviles: `<select>` nativo.
+- Pruebas móviles (iPhone 17, iOS 27): Playwright WebKit y simulador en Device Hub (manejado con AXe) según `docs/runbooks/ios-testing.md`.
 
 ## Auth
 
