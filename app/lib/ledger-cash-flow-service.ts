@@ -7,7 +7,7 @@ import {
 } from "@/app/lib/ledger";
 import type { IncomeExpenseCommand } from "@/app/lib/finance-v1-contracts";
 
-async function ensureFlowAccount(
+export async function ensureFlowAccount(
   transaction: Prisma.TransactionClient,
   type: "INCOME" | "EXPENSE",
   currency: string

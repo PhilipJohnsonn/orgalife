@@ -125,6 +125,7 @@ enum JournalOperationType {
   OPENING_BALANCE
   ADJUSTMENT
   REVERSAL
+  SHARED_EXPENSE
 }
 
 enum JournalEntryStatus {
