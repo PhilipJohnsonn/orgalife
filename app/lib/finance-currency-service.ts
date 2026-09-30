@@ -4,6 +4,7 @@ import {
   assertCurrencyRemovable,
   parseCurrencyCode,
 } from "@/app/lib/finance-currencies";
+import { peopleWithBalanceIn } from "@/app/lib/finance-person-service";
 import { prisma } from "@/app/lib/prisma";
 
 export async function listEnabledCurrencies(): Promise<string[]> {
@@ -28,11 +29,18 @@ export async function disableCurrency(input: unknown): Promise<void> {
   const code = parseCurrencyCode(input);
   const existing = await prisma.enabledCurrency.findUnique({ where: { code } });
   if (!existing) throw new CurrencyError("CURRENCY_NOT_FOUND", 404, `${code} no está habilitada`);
-  const activeAccounts = await prisma.ledgerAccount.findMany({
-    where: { currency: code, isActive: true, isSystem: false },
-    select: { name: true, currency: true },
-    orderBy: { name: "asc" },
-  });
-  assertCurrencyRemovable(code, activeAccounts);
+  const [activeAccounts, people] = await Promise.all([
+    prisma.ledgerAccount.findMany({
+      // Person accounts only block while they hold a balance (checked below).
+      where: { currency: code, isActive: true, isSystem: false, personId: null },
+      select: { name: true, currency: true },
+      orderBy: { name: "asc" },
+    }),
+    peopleWithBalanceIn(code),
+  ]);
+  assertCurrencyRemovable(code, [
+    ...activeAccounts,
+    ...people.map((person) => ({ name: person.name, currency: code })),
+  ]);
   await prisma.enabledCurrency.delete({ where: { code } });
 }

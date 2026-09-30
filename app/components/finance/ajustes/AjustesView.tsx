@@ -6,6 +6,7 @@ import { AccountsSection } from "./AccountsSection";
 import { CategoriesSection } from "./CategoriesSection";
 import { CommitmentsSection } from "./CommitmentsSection";
 import { CurrenciesSection } from "./CurrenciesSection";
+import { PeopleSection } from "./PeopleSection";
 import { WalletAliasesSection } from "./WalletAliasesSection";
 import { derivePurchaseLines } from "./purchaseLines";
 
@@ -53,6 +54,7 @@ export function AjustesView() {
 
       <AccountsSection accounts={accounts} currencies={currencies} loading={loading} onCreated={loadAccounts} />
       <CurrenciesSection currencies={currencies} loading={loading} onChanged={loadCurrencies} />
+      <PeopleSection />
       <WalletAliasesSection />
       <CategoriesSection purchaseLines={purchaseLines} onCategorized={loadStatements} />
       <CommitmentsSection accounts={accounts} purchaseLines={purchaseLines} />

@@ -25,7 +25,7 @@ function errorResponse(error: unknown) {
 
 export async function GET() {
   try {
-    return NextResponse.json(await getNativeAccountBalances());
+    return NextResponse.json(await getNativeAccountBalances({ includePeople: false }));
   } catch (error) {
     return errorResponse(error);
   }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { FinanceCategoryError } from "@/app/lib/finance-category-service";
+import { PersonError } from "@/app/lib/finance-people";
 import { RequestValidationError } from "@/app/lib/finance-v1-contracts";
 import { LedgerInvariantError } from "@/app/lib/ledger";
 
@@ -7,7 +8,7 @@ export function settingsErrorResponse(error: unknown, logKey: string) {
   if (error instanceof RequestValidationError || error instanceof LedgerInvariantError) {
     return NextResponse.json({ error: { code: error.code, message: error.message } }, { status: 400 });
   }
-  if (error instanceof FinanceCategoryError) {
+  if (error instanceof FinanceCategoryError || error instanceof PersonError) {
     return NextResponse.json({ error: { code: error.code, message: error.message } }, { status: error.status });
   }
   console.error(logKey, error instanceof Error ? error.name : "unknown");

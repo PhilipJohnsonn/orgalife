@@ -277,9 +277,10 @@ export async function adjustLedgerAccount(input: AdjustLedgerAccountInput) {
   });
 }
 
-export async function getNativeAccountBalances() {
+/** Person accounts (shared expenses) count in net position but aren't listed as "your" accounts. */
+export async function getNativeAccountBalances({ includePeople = true } = {}) {
   const accounts = await prisma.ledgerAccount.findMany({
-    where: { isSystem: false },
+    where: { isSystem: false, ...(includePeople ? {} : { personId: null }) },
     include: {
       accountGroup: {
         select: { id: true, name: true, region: true, type: true },

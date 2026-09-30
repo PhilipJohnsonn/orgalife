@@ -104,6 +104,7 @@ enum LedgerAccountSubtype {
   OPENING
   ADJUSTMENT
   FX
+  PERSON
   OTHER
 }
 
@@ -243,7 +244,9 @@ model LedgerAccount {
   trackingMode         AccountTrackingMode   @default(TRANSACTIONAL)
   isSystem             Boolean               @default(false)
   isActive             Boolean               @default(true)
+  personId             String?
   accountGroup         AccountGroup?         @relation(fields: [accountGroupId], references: [id], onDelete: Restrict)
+  person               Person?               @relation(fields: [personId], references: [id], onDelete: Restrict)
   postings             Posting[]
   recurringCommitments RecurringCommitment[]
   walletCardAliases    WalletCardAlias[]
@@ -251,7 +254,18 @@ model LedgerAccount {
   updatedAt            DateTime              @updatedAt
 
   @@unique([accountGroupId, currency])
+  @@unique([personId, currency])
   @@index([kind, currency])
+}
+
+/// Someone you share expenses with. One RECEIVABLE/PERSON ledger account per currency, created on demand.
+model Person {
+  id         String          @id @default(cuid())
+  name       String
+  archivedAt DateTime?
+  accounts   LedgerAccount[]
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
 }
 
 model JournalEntry {

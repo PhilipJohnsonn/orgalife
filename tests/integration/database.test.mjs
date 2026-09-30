@@ -247,3 +247,12 @@ test("contains the enabled currencies table", async () => {
   const result = await client.query(`SELECT to_regclass('"EnabledCurrency"')::text AS enabled_currency`);
   assert.equal(result.rows[0]?.enabled_currency, '"EnabledCurrency"');
 });
+
+test("contains the people table and person link on ledger accounts", async () => {
+  const table = await client.query(`SELECT to_regclass('"Person"')::text AS person`);
+  assert.equal(table.rows[0]?.person, '"Person"');
+  const column = await client.query(
+    `SELECT 1 FROM information_schema.columns WHERE table_name = 'LedgerAccount' AND column_name = 'personId'`
+  );
+  assert.equal(column.rowCount, 1);
+});
