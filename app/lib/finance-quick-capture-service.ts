@@ -6,6 +6,7 @@ import { getCurrentUsdRates } from "@/app/lib/exchange-rate-service";
 import { convertUsdPivotAmount } from "@/app/lib/finance-rates";
 import type { QuickCaptureCommand } from "@/app/lib/finance-v1-contracts";
 import { recordProvisionalCardPurchase } from "@/app/lib/ledger-card-provisional-service";
+import { listEnabledCurrencies } from "@/app/lib/finance-currency-service";
 import { recordIncomeExpense } from "@/app/lib/ledger-cash-flow-service";
 import { prisma } from "@/app/lib/prisma";
 
@@ -189,7 +190,7 @@ export async function recordQuickCapture(command: QuickCaptureCommand) {
 }
 
 export async function getQuickCaptureOptions() {
-  const [categories, accounts] = await Promise.all([
+  const [categories, accounts, currencies] = await Promise.all([
     prisma.category.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.ledgerAccount.findMany({
       where: {
@@ -200,10 +201,12 @@ export async function getQuickCaptureOptions() {
       select: { id: true, name: true, currency: true, kind: true },
       orderBy: { name: "asc" },
     }),
+    listEnabledCurrencies(),
   ]);
   return {
     categories,
     accounts: accounts.map((account) => ({ ...account, currency: account.currency.trim() })),
+    currencies,
     // Plain lists for iOS Shortcuts "Choose from List".
     categoryNames: [NO_CATEGORY_LABEL, ...categories.map((category) => category.name)],
     accountNames: accounts.map((account) => account.name),

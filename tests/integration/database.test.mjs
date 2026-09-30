@@ -242,3 +242,8 @@ test("enforces ledger structural constraints", async () => {
     "ledger-test-group",
   ]);
 });
+
+test("contains the enabled currencies table", async () => {
+  const result = await client.query(`SELECT to_regclass('"EnabledCurrency"')::text AS enabled_currency`);
+  assert.equal(result.rows[0]?.enabled_currency, '"EnabledCurrency"');
+});

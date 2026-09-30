@@ -46,6 +46,7 @@ export type MonthMovement = {
 export type CaptureOptions = {
   categories: { id: string; name: string }[];
   accounts: { id: string; name: string; currency: string; kind: "ASSET" | "LIABILITY" }[];
+  currencies: string[];
 };
 
 export type ApiError = { error: { code: string; message: string } };

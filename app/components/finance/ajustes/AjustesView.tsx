@@ -5,12 +5,14 @@ import { CardStatement, LedgerAccount } from "@/app/components/finance/cierre/sh
 import { AccountsSection } from "./AccountsSection";
 import { CategoriesSection } from "./CategoriesSection";
 import { CommitmentsSection } from "./CommitmentsSection";
+import { CurrenciesSection } from "./CurrenciesSection";
 import { WalletAliasesSection } from "./WalletAliasesSection";
 import { derivePurchaseLines } from "./purchaseLines";
 
 export function AjustesView() {
   const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
   const [statements, setStatements] = useState<CardStatement[]>([]);
+  const [currencies, setCurrencies] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -26,12 +28,18 @@ export function AjustesView() {
     setStatements(await response.json());
   }, []);
 
+  const loadCurrencies = useCallback(async () => {
+    const response = await fetch("/api/finance/v1/currencies");
+    if (!response.ok) throw new Error("No se pudieron cargar las monedas");
+    setCurrencies(await response.json());
+  }, []);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    Promise.all([loadAccounts(), loadStatements()])
+    Promise.all([loadAccounts(), loadStatements(), loadCurrencies()])
       .catch(() => setError("No se pudieron cargar los datos de ajustes."))
       .finally(() => setLoading(false));
-  }, [loadAccounts, loadStatements]);
+  }, [loadAccounts, loadStatements, loadCurrencies]);
 
   const purchaseLines = useMemo(() => derivePurchaseLines(statements), [statements]);
 
@@ -43,7 +51,8 @@ export function AjustesView() {
         </p>
       )}
 
-      <AccountsSection accounts={accounts} loading={loading} onCreated={loadAccounts} />
+      <AccountsSection accounts={accounts} currencies={currencies} loading={loading} onCreated={loadAccounts} />
+      <CurrenciesSection currencies={currencies} loading={loading} onChanged={loadCurrencies} />
       <WalletAliasesSection />
       <CategoriesSection purchaseLines={purchaseLines} onCategorized={loadStatements} />
       <CommitmentsSection accounts={accounts} purchaseLines={purchaseLines} />

@@ -43,10 +43,12 @@ function groupByEntity(accounts: LedgerAccount[]): EntityGroup[] {
 
 export function AccountsSection({
   accounts,
+  currencies,
   loading,
   onCreated,
 }: {
   accounts: LedgerAccount[];
+  currencies: string[];
   loading: boolean;
   onCreated: () => Promise<void>;
 }) {
@@ -116,6 +118,7 @@ export function AccountsSection({
         {createTarget !== null && (
           <CreateAccountDialog
             prefill={createTarget === "new" ? null : createTarget}
+            currencies={currencies}
             onClose={() => setCreateTarget(null)}
             onCreated={onCreated}
           />

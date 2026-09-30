@@ -22,10 +22,10 @@ function inferRegion(currency: string): Region {
   return "GLOBAL";
 }
 
-function emptyForm(prefill: EntityPrefill | null) {
+function emptyForm(prefill: EntityPrefill | null, currencies: string[]) {
   return {
     accountName: "",
-    currency: "ARS",
+    currency: currencies.includes("ARS") ? "ARS" : (currencies[0] ?? "ARS"),
     groupType: prefill?.groupType ?? "BANK",
     groupName: prefill?.groupName ?? "",
     region: prefill?.region ?? ("ARGENTINA" as Region),
@@ -40,10 +40,12 @@ function emptyForm(prefill: EntityPrefill | null) {
  */
 export function CreateAccountDialog({
   prefill,
+  currencies,
   onClose,
   onCreated,
 }: {
   prefill: EntityPrefill | null;
+  currencies: string[];
   onClose: () => void;
   onCreated: () => Promise<void>;
 }) {
@@ -52,7 +54,7 @@ export function CreateAccountDialog({
   const [groupNameEdited, setGroupNameEdited] = useState(false);
   const [regionEdited, setRegionEdited] = useState(false);
   const [accountNameEdited, setAccountNameEdited] = useState(false);
-  const [form, setForm] = useState(() => emptyForm(prefill));
+  const [form, setForm] = useState(() => emptyForm(prefill, currencies));
 
   const effectiveRegion = prefill ? prefill.region : regionEdited ? form.region : inferRegion(form.currency);
   const effectiveAccountName = accountNameEdited
@@ -121,9 +123,7 @@ export function CreateAccountDialog({
           <div>
             <Label htmlFor="currency">Moneda</Label>
             <select id="currency" className={selectClass()} value={form.currency} onChange={(event) => setForm({ ...form, currency: event.target.value })}>
-              <option>ARS</option>
-              <option>USD</option>
-              <option>AUD</option>
+              {currencies.map((code) => <option key={code}>{code}</option>)}
             </select>
           </div>
           {!prefill && (

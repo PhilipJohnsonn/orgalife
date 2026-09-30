@@ -313,6 +313,11 @@ model FinanceConfiguration {
   updatedAt    DateTime @updatedAt
 }
 
+model EnabledCurrency {
+  code      String   @id @db.Char(3)
+  createdAt DateTime @default(now())
+}
+
 model Posting {
   id              String                   @id @default(cuid())
   journalEntryId  String

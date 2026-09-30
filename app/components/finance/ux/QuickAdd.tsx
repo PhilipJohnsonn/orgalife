@@ -23,7 +23,6 @@ import type { ApiError, CaptureOptions } from "./types";
 type Mode = "EXPENSE" | "INCOME" | "TRANSFER";
 
 const QUICK_ADD_ROUTES = ["/finanzas/mes", "/finanzas/movimientos"];
-const CURRENCIES = ["AUD", "USD", "ARS"] as const;
 const NO_CATEGORY = "none";
 const LAST_ACCOUNT_KEY = "finance-quick-add:last-account";
 const NATIVE_SELECT =
@@ -91,7 +90,7 @@ export function QuickAdd() {
   const [amount, setAmount] = useState("");
   const [merchant, setMerchant] = useState("");
   const [accountId, setAccountId] = useState("");
-  const [currency, setCurrency] = useState<string>(CURRENCIES[0]);
+  const [currency, setCurrency] = useState("AUD");
   const [categoryId, setCategoryId] = useState(NO_CATEGORY);
   const [date, setDate] = useState(() => todayLocal());
   const [note, setNote] = useState("");
@@ -176,7 +175,11 @@ export function QuickAdd() {
   function handleOpenChange(next: boolean) {
     setOpen(next);
     setFormError(null);
-    if (next) setDate(todayLocal());
+    if (next) {
+      setDate(todayLocal());
+      // Refetch on every open: accounts and currencies may have changed in Ajustes.
+      setOptions(null);
+    }
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -389,7 +392,7 @@ export function QuickAdd() {
                         value={currency}
                         onChange={(event) => setCurrency(event.target.value)}
                       >
-                        {CURRENCIES.map((code) => (
+                        {options.currencies.map((code) => (
                           <option key={code} value={code}>
                             {code}
                           </option>
