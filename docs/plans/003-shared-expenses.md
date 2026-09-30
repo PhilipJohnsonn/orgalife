@@ -12,9 +12,10 @@ Objetivo: dividir gastos con otras personas (partes iguales por defecto), regist
 - Saldos por moneda por persona, con neto aproximado en AUD (informativo).
 - Saldar: misma moneda (cuenta ↔ persona) o en otra moneda con dos montos vía clearing FX. No es gasto ni ingreso.
 - Monedas: se habilitan a mano en Ajustes; no hay lista global de ISO. El + y "Nueva cuenta" usan sólo las habilitadas.
-- "Dividir" un movimiento ya capturado revierte el `EXPENSE` original y registra el `SHARED_EXPENSE` (sin mutar postings). No aplica a compras de tarjeta provisionales.
+- Todo se anota en el momento (Apple Pay o a mano), con tarjeta o no; no se importan resúmenes (decisión 2026-09-30). Las compras con tarjeta se registran confirmadas y la tarjeta es un pagador más en un gasto compartido.
+- "Dividir" un movimiento ya capturado (`EXPENSE` o `CARD_PURCHASE` confirmado) lo revierte y registra el `SHARED_EXPENSE` (sin mutar postings).
 - Resumen mensual: ya suma sólo postings de cuentas `EXPENSE`/`INCOME`, así que cuenta tu parte sin cambios. Saldos con personas fuera del disponible; dentro de la posición neta.
-- Fuera de alcance: grupos/viajes, compartidos recurrentes, link de solo lectura, compensar deudas entre monedas sin mover dinero, dividir provisionales de tarjeta.
+- Fuera de alcance: grupos/viajes, compartidos recurrentes, link de solo lectura, compensar deudas entre monedas sin mover dinero, reconciliar compartidos con resúmenes de tarjeta.
 
 ## Asientos
 
@@ -39,7 +40,7 @@ Objetivo: dividir gastos con otras personas (partes iguales por defecto), regist
 | 2 | Personas: modelo, `personId`, subtipo `PERSON`, CRUD, archivar sólo con saldo 0, sección en Ajustes | Integration alta/edición/archivo con y sin saldo, Playwright |
 | 3 | Backend gasto compartido: módulo puro `shared-expense.ts` (iguales/montos/porcentajes, redondeo) + `recordSharedExpense` | Unit de división; integration: asiento balanceado en pagué yo / pagó otro / 3 personas / moneda extranjera; resumen cuenta sólo tu parte |
 | 4 | Saldar misma moneda y cross-currency + endpoint de saldos por persona/moneda con neto AUD | Integration parcial, total, cross-currency; saldo vuelve a 0 |
-| 5 | "Dividir" movimiento existente (reversión + `SHARED_EXPENSE`) | Integration: original revertido, sin doble conteo, idempotente |
+| 5 | Tarjeta como pagador en `recordSharedExpense`; "Dividir" movimiento existente, gasto o compra con tarjeta (reversión + `SHARED_EXPENSE`) | Integration: pagó con tarjeta; original revertido, sin doble conteo, idempotente |
 | 6 | UI: sección "Compartido" plegada en Gasto del +; Movimientos muestra "Total 60 · tu parte 20" | Lint, typecheck, Playwright 390 en los tres casos |
 | 7 | Pantalla `/finanzas/compartidos`: saldos, historial, "Me pagó" / "Le pagué"; entrada en la navegación | Playwright 390/1440, saldos = ledger, gate completo (lint, typecheck, unit, integration, build) |
 

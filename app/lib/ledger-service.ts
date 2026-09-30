@@ -169,69 +169,78 @@ export async function createPostedJournalEntry(
   }
 }
 
+/** Reverses a posted entry inside an existing transaction; returns the existing reversal if already done. */
+export async function reverseJournalEntryInTransaction(
+  transaction: Prisma.TransactionClient,
+  input: Omit<ReverseJournalEntryInput, "occurredOn">,
+  occurredOn: Date
+) {
+  const original = await transaction.journalEntry.findUnique({
+    where: { id: input.journalEntryId },
+    include: {
+      ...journalWithPostings,
+      reversedBy: { include: journalWithPostings },
+    },
+  });
+  if (!original) {
+    throw new LedgerInvariantError(
+      "LEDGER_ENTRY_NOT_FOUND",
+      `Journal entry not found: ${input.journalEntryId}`
+    );
+  }
+  if (original.reversedBy) return original.reversedBy;
+  if (original.status !== "POSTED") {
+    throw new LedgerInvariantError(
+      "LEDGER_ENTRY_NOT_POSTED",
+      "Only posted journal entries can be reversed"
+    );
+  }
+
+  const reversalPostings = validateBalancedPostings(
+    original.postings.map((posting) => ({
+      ledgerAccountId: posting.ledgerAccountId,
+      currency: posting.ledgerAccount.currency.trim(),
+      side: oppositePostingSide(posting.side),
+      amount: posting.amount.toFixed(2),
+      categoryId: posting.categoryId,
+      statementLineId: posting.statementLineId,
+    }))
+  );
+
+  const reversal = await transaction.journalEntry.create({
+    data: {
+      operationType: "REVERSAL",
+      source: "SYSTEM",
+      occurredOn,
+      description: normalizedDescription(
+        input.description ?? `Reversal: ${original.description}`
+      ),
+      idempotencyKey: `reversal:${original.id}`,
+      reversalOfId: original.id,
+      postings: {
+        create: reversalPostings.map(postingCreateData),
+      },
+    },
+    include: journalWithPostings,
+  });
+
+  await transaction.journalEntry.update({
+    where: { id: original.id },
+    data: { status: "REVERSED" },
+  });
+
+  return reversal;
+}
+
 export async function reversePostedJournalEntry(
   input: ReverseJournalEntryInput
 ) {
   const occurredOn = parseCivilDate(input.occurredOn);
 
   try {
-    return await prisma.$transaction(async (transaction) => {
-      const original = await transaction.journalEntry.findUnique({
-        where: { id: input.journalEntryId },
-        include: {
-          ...journalWithPostings,
-          reversedBy: { include: journalWithPostings },
-        },
-      });
-      if (!original) {
-        throw new LedgerInvariantError(
-          "LEDGER_ENTRY_NOT_FOUND",
-          `Journal entry not found: ${input.journalEntryId}`
-        );
-      }
-      if (original.reversedBy) return original.reversedBy;
-      if (original.status !== "POSTED") {
-        throw new LedgerInvariantError(
-          "LEDGER_ENTRY_NOT_POSTED",
-          "Only posted journal entries can be reversed"
-        );
-      }
-
-      const reversalPostings = validateBalancedPostings(
-        original.postings.map((posting) => ({
-          ledgerAccountId: posting.ledgerAccountId,
-          currency: posting.ledgerAccount.currency.trim(),
-          side: oppositePostingSide(posting.side),
-          amount: posting.amount.toFixed(2),
-          categoryId: posting.categoryId,
-          statementLineId: posting.statementLineId,
-        }))
-      );
-
-      const reversal = await transaction.journalEntry.create({
-        data: {
-          operationType: "REVERSAL",
-          source: "SYSTEM",
-          occurredOn,
-          description: normalizedDescription(
-            input.description ?? `Reversal: ${original.description}`
-          ),
-          idempotencyKey: `reversal:${original.id}`,
-          reversalOfId: original.id,
-          postings: {
-            create: reversalPostings.map(postingCreateData),
-          },
-        },
-        include: journalWithPostings,
-      });
-
-      await transaction.journalEntry.update({
-        where: { id: original.id },
-        data: { status: "REVERSED" },
-      });
-
-      return reversal;
-    });
+    return await prisma.$transaction((transaction) =>
+      reverseJournalEntryInTransaction(transaction, input, occurredOn)
+    );
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       const existing = await prisma.journalEntry.findUnique({

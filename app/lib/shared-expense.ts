@@ -125,6 +125,20 @@ function currency(source: Record<string, unknown>, field: string) {
   return value;
 }
 
+/** Shape-checks a split; amounts are validated against a total by `splitSharedExpense`. */
+export function parseSplit(input: unknown): SplitInput {
+  const splitRecord = record(input, "split");
+  if (!Array.isArray(splitRecord.people)) throw new SharedExpenseError("INVALID_PAYLOAD", "split.people debe ser una lista", 400);
+  return {
+    mode: splitRecord.mode as SplitMode,
+    me: typeof splitRecord.me === "string" ? splitRecord.me : undefined,
+    people: splitRecord.people.map((person, index) => {
+      const item = record(person, `split.people[${index}]`);
+      return { personId: text(item, "personId"), value: typeof item.value === "string" ? item.value : undefined };
+    }),
+  };
+}
+
 export function parseSharedExpenseCommand(input: unknown): SharedExpenseCommand {
   const body = record(input, "body");
   const amount = text(body, "amount");
@@ -139,16 +153,7 @@ export function parseSharedExpenseCommand(input: unknown): SharedExpenseCommand 
     ? { accountId: text(paidByRecord, "accountId") }
     : { personId: text(paidByRecord, "personId"), currency: currency(paidByRecord, "currency") };
 
-  const splitRecord = record(body.split, "split");
-  if (!Array.isArray(splitRecord.people)) throw new SharedExpenseError("INVALID_PAYLOAD", "split.people debe ser una lista", 400);
-  const split: SplitInput = {
-    mode: splitRecord.mode as SplitMode,
-    me: typeof splitRecord.me === "string" ? splitRecord.me : undefined,
-    people: splitRecord.people.map((person, index) => {
-      const item = record(person, `split.people[${index}]`);
-      return { personId: text(item, "personId"), value: typeof item.value === "string" ? item.value : undefined };
-    }),
-  };
+  const split = parseSplit(body.split);
   // Validates amounts and mode up front, so the service only deals with the ledger.
   splitSharedExpense(amount, split);
 
