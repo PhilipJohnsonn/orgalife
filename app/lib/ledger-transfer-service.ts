@@ -85,7 +85,7 @@ async function getAccountPair(
   };
 }
 
-async function ensureFxClearingAccount(
+export async function ensureFxClearingAccount(
   transaction: Prisma.TransactionClient,
   currency: string
 ) {

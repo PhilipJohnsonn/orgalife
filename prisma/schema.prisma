@@ -126,6 +126,7 @@ enum JournalOperationType {
   ADJUSTMENT
   REVERSAL
   SHARED_EXPENSE
+  PERSON_SETTLEMENT
 }
 
 enum JournalEntryStatus {

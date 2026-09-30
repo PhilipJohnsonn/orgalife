@@ -1,6 +1,8 @@
 import type { Prisma } from "@/app/generated/prisma/client";
-import { PersonError } from "@/app/lib/finance-people";
+import { PersonError, assertSettlementFits, type PersonSettlementCommand } from "@/app/lib/finance-people";
+import { balancesByPerson } from "@/app/lib/finance-person-service";
 import { ensureFlowAccount } from "@/app/lib/ledger-cash-flow-service";
+import { ensureFxClearingAccount } from "@/app/lib/ledger-transfer-service";
 import { LedgerInvariantError, parseCivilDate, validateBalancedPostings, type PostingDraft } from "@/app/lib/ledger";
 import { prisma } from "@/app/lib/prisma";
 import { SharedExpenseError, splitSharedExpense, type SharedExpenseCommand } from "@/app/lib/shared-expense";
@@ -119,6 +121,77 @@ export async function recordSharedExpense(command: SharedExpenseCommand) {
             side: posting.side,
             amount: posting.amount,
             categoryId: posting.categoryId,
+          })),
+        },
+      },
+    });
+  });
+}
+
+/**
+ * Settles a person's balance from one of your accounts. Same currency moves
+ * account ↔ person directly; another currency goes through FX clearing with
+ * both amounts, like an FX operation. Neither income nor expense.
+ */
+export async function recordPersonSettlement(command: PersonSettlementCommand) {
+  const occurredOn = parseCivilDate(command.occurredOn);
+
+  return prisma.$transaction(async (transaction) => {
+    const existing = await transaction.journalEntry.findFirst({
+      where: { source: "MANUAL", idempotencyKey: command.idempotencyKey },
+    });
+    if (existing) return existing;
+
+    const person = await transaction.person.findUnique({ where: { id: command.personId } });
+    if (!person || person.archivedAt) throw new PersonError("PERSON_NOT_FOUND", 422, "La persona no existe o está archivada");
+    const account = await loadPayerAccount(transaction, command.accountId);
+    const accountCurrency = account.currency.trim();
+    if (command.debt?.currency === accountCurrency) {
+      throw new PersonError("INVALID_PAYLOAD", 400, "debt sólo va cuando la deuda está en otra moneda que la cuenta");
+    }
+    const debt = command.debt ?? { currency: accountCurrency, amount: command.amount };
+
+    const balance = (await balancesByPerson([person.id], transaction))
+      .get(person.id)
+      ?.find((item) => item.currency === debt.currency)?.balance ?? "0.00";
+    assertSettlementFits(person.name, command.direction, debt.currency, balance, debt.amount);
+
+    const personAccount = await ensurePersonAccount(transaction, person, debt.currency);
+    const received = command.direction === "RECEIVED";
+    const postings: PostingDraft[] = [
+      { ledgerAccountId: account.id, currency: accountCurrency, side: received ? "DEBIT" : "CREDIT", amount: command.amount },
+      { ledgerAccountId: personAccount.id, currency: debt.currency, side: received ? "CREDIT" : "DEBIT", amount: debt.amount },
+    ];
+    if (debt.currency !== accountCurrency) {
+      const accountClearing = await ensureFxClearingAccount(transaction, accountCurrency);
+      const debtClearing = await ensureFxClearingAccount(transaction, debt.currency);
+      postings.push(
+        { ledgerAccountId: accountClearing.id, currency: accountCurrency, side: received ? "CREDIT" : "DEBIT", amount: command.amount },
+        { ledgerAccountId: debtClearing.id, currency: debt.currency, side: received ? "DEBIT" : "CREDIT", amount: debt.amount }
+      );
+    }
+
+    const balanced = validateBalancedPostings(postings);
+    return transaction.journalEntry.create({
+      data: {
+        operationType: "PERSON_SETTLEMENT",
+        source: "MANUAL",
+        occurredOn,
+        description: command.description ?? (received ? `${person.name} te pagó` : `Le pagaste a ${person.name}`),
+        idempotencyKey: command.idempotencyKey,
+        metadata: {
+          personId: person.id,
+          direction: command.direction,
+          accountCurrency,
+          accountAmount: command.amount,
+          debtCurrency: debt.currency,
+          debtAmount: debt.amount,
+        },
+        postings: {
+          create: balanced.map((posting) => ({
+            ledgerAccountId: posting.ledgerAccountId,
+            side: posting.side,
+            amount: posting.amount,
           })),
         },
       },

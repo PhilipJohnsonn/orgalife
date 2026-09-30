@@ -1,3 +1,7 @@
+import type { Prisma } from "@/app/generated/prisma/client";
+import { Decimal } from "@prisma/client/runtime/client";
+import { getCurrentUsdRates } from "@/app/lib/exchange-rate-service";
+import { convertUsdPivotAmount } from "@/app/lib/finance-rates";
 import { calculateNativeBalance, type LedgerAccountKindValue } from "@/app/lib/ledger";
 import { PersonError, assertPersonArchivable, parsePersonName } from "@/app/lib/finance-people";
 import { prisma } from "@/app/lib/prisma";
@@ -5,8 +9,11 @@ import { prisma } from "@/app/lib/prisma";
 type PersonBalance = { currency: string; balance: string };
 
 /** Balance per currency of each person's ledger accounts. Positive = te debe; negative = le debés. */
-async function balancesByPerson(personIds?: string[]): Promise<Map<string, PersonBalance[]>> {
-  const accounts = await prisma.ledgerAccount.findMany({
+export async function balancesByPerson(
+  personIds?: string[],
+  client: Prisma.TransactionClient = prisma
+): Promise<Map<string, PersonBalance[]>> {
+  const accounts = await client.ledgerAccount.findMany({
     where: { personId: personIds ? { in: personIds } : { not: null } },
     select: {
       personId: true,
@@ -55,6 +62,26 @@ export async function listPeople() {
     name: person.name,
     balances: (balances.get(person.id) ?? []).filter((item) => Number(item.balance) !== 0),
   }));
+}
+
+/**
+ * Active people with balances per currency plus an approximate net in AUD
+ * (informative, current rates). `netAud` is null when a rate is missing.
+ */
+export async function listPeopleBalances() {
+  const people = await listPeople();
+  const currencies = [...new Set(people.flatMap((person) => person.balances.map((item) => item.currency)))];
+  const snapshots = await getCurrentUsdRates([...currencies, "AUD"]);
+  const rates = new Map([...snapshots.entries()].map(([currency, snapshot]) => [currency, snapshot.rate.toFixed(8)]));
+  return people.map((person) => {
+    let net = new Decimal(0);
+    for (const item of person.balances) {
+      const converted = convertUsdPivotAmount(item.balance, item.currency, "AUD", rates);
+      if (converted === null) return { ...person, netAud: null };
+      net = net.add(converted);
+    }
+    return { ...person, netAud: net.toFixed(2) };
+  });
 }
 
 /** People holding a non-zero balance in a currency, for blocking its removal. */
