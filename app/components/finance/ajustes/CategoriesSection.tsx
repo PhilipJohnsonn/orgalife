@@ -220,11 +220,11 @@ export function CategoriesSection() {
                   {formError}
                 </p>
               )}
-              <div>
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="categoryName">Nombre</Label>
                 <Input id="categoryName" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Supermercado" />
               </div>
-              <div>
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="categoryColor">Color</Label>
                 <input
                   id="categoryColor"
@@ -259,11 +259,11 @@ export function CategoriesSection() {
                   {editError}
                 </p>
               )}
-              <div>
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="editCategoryName">Nombre</Label>
                 <Input id="editCategoryName" value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} />
               </div>
-              <div>
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="editCategoryColor">Color</Label>
                 <input
                   id="editCategoryColor"

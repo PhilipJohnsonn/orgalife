@@ -88,7 +88,7 @@ export function UpdateBalanceDialog({
               {error}
             </p>
           )}
-          <div>
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor={`balance-${account.id}`}>Saldo actual según tu banco</Label>
             <Input
               id={`balance-${account.id}`}
@@ -97,7 +97,7 @@ export function UpdateBalanceDialog({
               onChange={(event) => setBalanceInput(event.target.value)}
             />
           </div>
-          <div>
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor={`balance-date-${account.id}`}>Fecha</Label>
             <Input
               id={`balance-date-${account.id}`}

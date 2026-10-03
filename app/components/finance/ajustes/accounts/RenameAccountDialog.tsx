@@ -66,7 +66,7 @@ export function RenameAccountDialog({
               {error}
             </p>
           )}
-          <div>
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor={`rename-${account.id}`}>Nombre</Label>
             <Input id={`rename-${account.id}`} value={name} onChange={(event) => setName(event.target.value)} />
           </div>

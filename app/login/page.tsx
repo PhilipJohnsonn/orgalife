@@ -45,7 +45,7 @@ export default function LoginPage() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Contraseña"
             autoFocus
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="w-full rounded-md border bg-background px-3 py-2 text-base outline-none md:text-sm ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           />
           {error && (
             <p className="text-sm text-destructive">Contraseña incorrecta.</p>

@@ -201,11 +201,11 @@ export function WalletAliasesSection() {
                   {formError}
                 </p>
               )}
-              <div>
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="walletAliasLabel">Nombre en Wallet</Label>
                 <Input id="walletAliasLabel" value={form.label} onChange={(event) => setForm({ ...form, label: event.target.value })} placeholder="ICBC Visa" />
               </div>
-              <div>
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="walletAliasAccount">Cuenta</Label>
                 <select id="walletAliasAccount" className={selectClass()} value={form.ledgerAccountId} onChange={(event) => setForm({ ...form, ledgerAccountId: event.target.value })}>
                   <option value="">Elegí una cuenta</option>
@@ -239,11 +239,11 @@ export function WalletAliasesSection() {
                   {editError}
                 </p>
               )}
-              <div>
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="editWalletAliasLabel">Nombre en Wallet</Label>
                 <Input id="editWalletAliasLabel" value={editForm.label} onChange={(event) => setEditForm({ ...editForm, label: event.target.value })} />
               </div>
-              <div>
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="editWalletAliasAccount">Cuenta</Label>
                 <select id="editWalletAliasAccount" className={selectClass()} value={editForm.ledgerAccountId} onChange={(event) => setEditForm({ ...editForm, ledgerAccountId: event.target.value })}>
                   {accounts.map((account) => <option key={account.id} value={account.id}>{account.name} ({account.currency})</option>)}

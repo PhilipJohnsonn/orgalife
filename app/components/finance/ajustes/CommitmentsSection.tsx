@@ -224,15 +224,15 @@ export function CommitmentsSection({ accounts }: { accounts: LedgerAccount[] }) 
                   {formError}
                 </p>
               )}
-              <div>
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="commitmentName">Nombre</Label>
                 <Input id="commitmentName" value={commitmentForm.name} onChange={(event) => setCommitmentForm({ ...commitmentForm, name: event.target.value })} />
               </div>
-              <div>
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="commitmentAmount">Importe esperado</Label>
                 <Input id="commitmentAmount" inputMode="decimal" value={commitmentForm.expectedAmount} onChange={(event) => setCommitmentForm({ ...commitmentForm, expectedAmount: event.target.value })} />
               </div>
-              <div>
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="commitmentCurrency">Moneda</Label>
                 <select
                   id="commitmentCurrency"
@@ -243,7 +243,7 @@ export function CommitmentsSection({ accounts }: { accounts: LedgerAccount[] }) 
                   <option>ARS</option><option>USD</option><option>AUD</option>
                 </select>
               </div>
-              <div>
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="commitmentFrequency">Frecuencia</Label>
                 <select
                   id="commitmentFrequency"
@@ -256,11 +256,11 @@ export function CommitmentsSection({ accounts }: { accounts: LedgerAccount[] }) 
                   <option value="MONTHLY">Mensual</option>
                 </select>
               </div>
-              <div>
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="commitmentStart">Comienza</Label>
                 <Input id="commitmentStart" type="date" value={commitmentForm.startsOn} onChange={(event) => setCommitmentForm({ ...commitmentForm, startsOn: event.target.value })} />
               </div>
-              <div className="sm:col-span-2">
+              <div className="flex flex-col gap-1.5 sm:col-span-2">
                 <Label htmlFor="commitmentAccount">Cuenta o tarjeta esperada</Label>
                 <select
                   id="commitmentAccount"
@@ -274,9 +274,9 @@ export function CommitmentsSection({ accounts }: { accounts: LedgerAccount[] }) 
               </div>
 
               {commitmentForm.frequency !== "ONCE" && (
-                <div className="sm:col-span-2">
+                <div className="flex flex-col gap-1.5 sm:col-span-2">
                   <Label>Termina</Label>
-                  <div className="mt-1 flex flex-wrap gap-2" role="radiogroup" aria-label="Termina">
+                  <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Termina">
                     {ENDS_OPTIONS.map((option) => (
                       <label
                         key={option.value}

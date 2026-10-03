@@ -108,7 +108,7 @@ export function CreateAccountDialog({
               {error}
             </p>
           )}
-          <div>
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="accountName">Nombre</Label>
             <Input
               id="accountName"
@@ -120,14 +120,14 @@ export function CreateAccountDialog({
               placeholder="ICBC ARS"
             />
           </div>
-          <div>
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="currency">Moneda</Label>
             <select id="currency" className={selectClass()} value={form.currency} onChange={(event) => setForm({ ...form, currency: event.target.value })}>
               {currencies.map((code) => <option key={code}>{code}</option>)}
             </select>
           </div>
           {!prefill && (
-            <div>
+            <div className="flex flex-col gap-1.5">
               <Label htmlFor="groupType">Tipo</Label>
               <select id="groupType" className={selectClass()} value={form.groupType} onChange={(event) => setForm({ ...form, groupType: event.target.value })}>
                 <option value="BANK">Banco</option>
@@ -143,7 +143,7 @@ export function CreateAccountDialog({
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               {!prefill && (
                 <>
-                  <div>
+                  <div className="flex flex-col gap-1.5">
                     <Label htmlFor="groupName">Entidad</Label>
                     <Input
                       id="groupName"
@@ -155,7 +155,7 @@ export function CreateAccountDialog({
                       placeholder="ICBC, Mercado Pago..."
                     />
                   </div>
-                  <div>
+                  <div className="flex flex-col gap-1.5">
                     <Label htmlFor="region">Región</Label>
                     <select
                       id="region"
@@ -173,11 +173,11 @@ export function CreateAccountDialog({
                   </div>
                 </>
               )}
-              <div>
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="openingBalance">Saldo actual</Label>
                 <Input id="openingBalance" inputMode="decimal" value={form.openingBalance} onChange={(event) => setForm({ ...form, openingBalance: event.target.value })} />
               </div>
-              <div>
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="openingOn">Fecha del saldo</Label>
                 <Input id="openingOn" type="date" value={form.openingOn} onChange={(event) => setForm({ ...form, openingOn: event.target.value })} />
               </div>
