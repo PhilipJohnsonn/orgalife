@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { GOOGLE_AUTH_COOKIE, authorizationUrl, createAuthRequest, googleConfig } from "@/app/lib/google-oidc";
+import { relativeRedirect } from "@/app/lib/auth-session";
 
-export function GET(request: NextRequest) {
+export function GET() {
   const config = googleConfig();
-  if (!config) return NextResponse.redirect(new URL("/login?error=google", request.url));
+  if (!config) return relativeRedirect("/login?error=google");
 
   const authRequest = createAuthRequest();
   const response = NextResponse.redirect(authorizationUrl(config, authRequest));

@@ -1,4 +1,4 @@
-import type { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import {
   COOKIE_NAME,
   SESSION_TTL_SECONDS,
@@ -43,4 +43,12 @@ export async function startSession(request: NextRequest, response: NextResponse)
     maxAge: SESSION_TTL_SECONDS,
   });
   return response;
+}
+
+/**
+ * Route handlers behind the reverse proxy see an internal host in request.url,
+ * so their redirects use a relative Location instead of an absolute URL.
+ */
+export function relativeRedirect(location: string) {
+  return new NextResponse(null, { status: 307, headers: { Location: location } });
 }

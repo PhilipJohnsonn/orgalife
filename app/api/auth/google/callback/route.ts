@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { startSession } from "@/app/lib/auth-session";
+import type { NextRequest } from "next/server";
+import { relativeRedirect, startSession } from "@/app/lib/auth-session";
 import { GOOGLE_AUTH_COOKIE, GOOGLE_TOKEN_URL, googleConfig, verifyGoogleIdToken } from "@/app/lib/google-oidc";
 
 function readAuthRequest(value: string | undefined) {
@@ -15,10 +15,8 @@ function readAuthRequest(value: string | undefined) {
 
 export async function GET(request: NextRequest) {
   const config = googleConfig();
-  // Behind the reverse proxy request.url may be an internal host; redirects use the public URL.
-  const baseUrl = config?.baseUrl ?? request.nextUrl.origin;
   const loginError = (error: "google" | "email") => {
-    const response = NextResponse.redirect(new URL(`/login?error=${error}`, baseUrl));
+    const response = relativeRedirect(`/login?error=${error}`);
     response.cookies.delete({ name: GOOGLE_AUTH_COOKIE, path: "/api/auth/google" });
     return response;
   };
@@ -59,7 +57,7 @@ export async function GET(request: NextRequest) {
     return loginError("google");
   }
 
-  const response = NextResponse.redirect(new URL("/", baseUrl));
+  const response = relativeRedirect("/");
   response.cookies.delete({ name: GOOGLE_AUTH_COOKIE, path: "/api/auth/google" });
   return startSession(request, response);
 }
