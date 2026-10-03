@@ -151,7 +151,7 @@ Cada tarea tiene una salida observable y una verificación. Una tarea se marca c
 
 ### E1-03 — Google OAuth o Plan B
 
-- **Estado:** Plan B activo — password endurecido; Google pendiente de `PUBLIC_BASE_URL`
+- **Estado:** Implementado 2026-10-03 (commit `656c54c`): OIDC con state/nonce/PKCE y JWKS, activo sólo con las cuatro variables configuradas; password como respaldo. Pendiente: credenciales de Google Cloud y variables en el VPS.
 - Si E0-08 pasa: OIDC validado, `PUBLIC_BASE_URL`, state/nonce/PKCE y rollout dual temporal.
 - Si falla: conservar password endurecido; no decodificar tokens sin firma.
 - **Verificación:** firma, issuer, audience, expiración, nonce y email permitido.

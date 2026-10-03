@@ -38,7 +38,8 @@ App personal: tareas (kanban), calendario y finanzas. UI en español rioplatense
 
 ## Auth
 
-- `proxy.ts`: cookie de sesión (login con `AUTH_PASSWORD`) o bearer.
+- `proxy.ts`: cookie de sesión opaca o bearer. La sesión se crea con `AUTH_PASSWORD` o con Google (`app/lib/auth-session.ts`).
+- Google OIDC (state, nonce, PKCE; ID token validado con JWKS): sólo activo con `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_ALLOWED_EMAIL` y `PUBLIC_BASE_URL` (redirect `<PUBLIC_BASE_URL>/api/auth/google/callback`). La contraseña queda como respaldo.
 - `MCP_API_KEY`: sólo rutas de tareas (`/api/boards|columns|tasks|subtasks|tags`).
 - `CAPTURE_API_KEY`: sólo `/api/finance/v1/quick-capture/*` (atajos de iOS, ver `docs/runbooks/ios-shortcuts-capture.md`).
 
@@ -47,16 +48,16 @@ App personal: tareas (kanban), calendario y finanzas. UI en español rioplatense
 Especificación: `docs/rfcs/001-finance-ledger-v1.md`.
 
 - El ledger de doble entrada es la fuente de verdad. Transferencias, FX y pagos de tarjeta no son gastos.
-- ICBC Visa se paga por moneda facturada (USD con USD, ARS con ARS). Una compra con tarjeta capturada (+ o Apple Pay) se registra confirmada en el momento, en la moneda facturada. El usuario no importa resúmenes: la importación y reconciliación de resúmenes existen pero no se usan.
-- Impuestos elegibles de consumos USD se excluyen cuando el saldo USD se cancela con USD.
+- ICBC Visa se paga por moneda facturada (USD con USD, ARS con ARS). Una compra con tarjeta capturada (+ o Apple Pay) se registra confirmada en el momento, en la moneda facturada (AUD se convierte a USD con la cotización de mercado). No hay importación de resúmenes.
+- "Pagar tarjeta" (Cierre) registra lo realmente pagado por moneda desde una cuenta de esa moneda. Con "Pagué el total" y fecha de cierre, `pagado − deuda registrada hasta el cierre` se asienta como gasto de tarjeta en "Tarjeta: cambio y cargos" (negativo si el banco cobró menos). Deuda al cierre = cargos hasta el cierre − todos los pagos y diferencias (`finance-card-payment.ts`).
 - Suscripciones/compromisos son informativos: no crean movimientos.
 - No inventar saldos ni usar ajustes contra equity para ocultar diferencias. Rendimientos se registran como ingreso "Rendimientos" vía "Actualizar saldo".
 - Cuentas usadas se archivan (saldo 0), no se borran.
-- Resumen mensual excluye entries `SUPERSEDED`, `DISMISSED`, `REVERSED` y `REVERSAL`.
+- Resumen mensual excluye entries `REVERSED` y `REVERSAL`.
 
 ## Deploy y producción
 
 - `orgalife.jensenpc.com`. Push a `main` despliega automático (GitHub Actions → SSH → `docker compose up -d --build`). Pushear sólo con pedido explícito.
 - Variables de producción en `~/orgalife/.env` del VPS (`env_file`).
-- El VPS bloquea salida a Google: usar el paquete `geist`, no `next/font/google`.
+- Fuentes: usar el paquete `geist`, no `next/font/google` (la descarga de fuentes falló en el VPS). Los endpoints de Google OAuth sí responden desde el VPS (spike E0-08, 2026-08-10).
 - SSH y operaciones productivas manuales las ejecuta el usuario, un paso por vez.

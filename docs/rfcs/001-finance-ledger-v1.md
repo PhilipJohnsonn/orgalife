@@ -6,6 +6,7 @@
 - **Fecha:** 2026-08-10
 - **Última actualización:** 2026-08-11
 - **Implementación:** Etapas 0–7 completas; Etapa 8 preparada y pendiente de backup/reset productivo
+- **Cambio 2026-10-03:** se retiraron la importación de resúmenes ICBC, la reconciliación, las exclusiones de impuestos, las asignaciones de pago y las compras provisionales (§12–§14), además del modelo financiero anterior. Las compras con tarjeta se registran en el momento y "Pagar tarjeta" asienta la diferencia contra lo pagado; ver `AGENTS.md` (Invariantes de finanzas).
 
 ## 1. Resumen ejecutivo
 
