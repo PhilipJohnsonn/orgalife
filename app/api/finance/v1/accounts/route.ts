@@ -8,6 +8,7 @@ import {
   createAccountWithGroup,
   getNativeAccountBalances,
 } from "@/app/lib/ledger-account-service";
+import { listEnabledCurrencies } from "@/app/lib/finance-currency-service";
 
 function errorResponse(error: unknown) {
   if (error instanceof RequestValidationError || error instanceof LedgerInvariantError) {
@@ -44,6 +45,9 @@ export async function POST(request: Request) {
 
   try {
     const command = parseCreateAccountCommand(body);
+    if (!(await listEnabledCurrencies()).includes(command.currency)) {
+      throw new RequestValidationError(`${command.currency} no está habilitada`);
+    }
     const result = await createAccountWithGroup({
       group: {
         name: command.groupName,

@@ -25,7 +25,7 @@ function inferRegion(currency: string): Region {
 function emptyForm(prefill: EntityPrefill | null, currencies: string[]) {
   return {
     accountName: "",
-    currency: currencies.includes("ARS") ? "ARS" : (currencies[0] ?? "ARS"),
+    currency: currencies.includes("ARS") ? "ARS" : (currencies[0] ?? ""),
     groupType: prefill?.groupType ?? "BANK",
     groupName: prefill?.groupName ?? "",
     region: prefill?.region ?? ("ARGENTINA" as Region),
@@ -51,25 +51,24 @@ export function CreateAccountDialog({
 }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [groupNameEdited, setGroupNameEdited] = useState(false);
   const [regionEdited, setRegionEdited] = useState(false);
   const [accountNameEdited, setAccountNameEdited] = useState(false);
   const [form, setForm] = useState(() => emptyForm(prefill, currencies));
 
+  const groupName = prefill ? prefill.groupName : form.groupName.trim();
   const effectiveRegion = prefill ? prefill.region : regionEdited ? form.region : inferRegion(form.currency);
   const effectiveAccountName = accountNameEdited
     ? form.accountName
-    : prefill
-      ? `${prefill.groupName} ${form.currency}`
-      : form.accountName;
+    : `${groupName} ${form.currency}`.trim();
+  const canSave = Boolean(groupName) && currencies.includes(form.currency) && Boolean(effectiveAccountName.trim());
 
   async function save() {
-    if (saving) return;
+    if (saving || !canSave) return;
     setSaving(true);
     setError("");
     try {
       await postJson("/api/finance/v1/accounts", {
-        groupName: prefill ? prefill.groupName : groupNameEdited ? form.groupName : effectiveAccountName,
+        groupName,
         accountName: effectiveAccountName,
         region: effectiveRegion,
         groupType: prefill ? prefill.groupType : form.groupType,
@@ -93,7 +92,9 @@ export function CreateAccountDialog({
         <DialogHeader>
           <DialogTitle>{prefill ? "Nueva moneda" : "Nueva cuenta"}</DialogTitle>
           <DialogDescription>
-            {prefill ? `Se agrega a ${prefill.groupName}.` : "Con nombre, moneda y tipo alcanza. El resto es opcional."}
+            {prefill
+              ? `Se agrega a ${prefill.groupName}.`
+              : "Con banco o app, moneda y tipo alcanza. El nombre de la cuenta se arma solo."}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -108,23 +109,28 @@ export function CreateAccountDialog({
               {error}
             </p>
           )}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="accountName">Nombre</Label>
-            <Input
-              id="accountName"
-              value={effectiveAccountName}
-              onChange={(event) => {
-                setAccountNameEdited(true);
-                setForm({ ...form, accountName: event.target.value });
-              }}
-              placeholder="ICBC ARS"
-            />
-          </div>
+          {!prefill && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="groupName">Banco o app</Label>
+              <Input
+                id="groupName"
+                value={form.groupName}
+                onChange={(event) => setForm({ ...form, groupName: event.target.value })}
+                placeholder="ICBC, Mercado Pago, Wise..."
+              />
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="currency">Moneda</Label>
-            <select id="currency" className={selectClass()} value={form.currency} onChange={(event) => setForm({ ...form, currency: event.target.value })}>
-              {currencies.map((code) => <option key={code}>{code}</option>)}
-            </select>
+            {currencies.length === 0 ? (
+              <p className="rounded-md bg-muted p-3 text-sm">
+                Primero habilitá una moneda en Monedas, más abajo en Ajustes.
+              </p>
+            ) : (
+              <select id="currency" className={selectClass()} value={form.currency} onChange={(event) => setForm({ ...form, currency: event.target.value })}>
+                {currencies.map((code) => <option key={code}>{code}</option>)}
+              </select>
+            )}
           </div>
           {!prefill && (
             <div className="flex flex-col gap-1.5">
@@ -141,37 +147,35 @@ export function CreateAccountDialog({
           <details className="rounded-md border p-3">
             <summary className="cursor-pointer text-sm font-medium">Más opciones</summary>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="accountName">Nombre de la cuenta</Label>
+                <Input
+                  id="accountName"
+                  value={effectiveAccountName}
+                  onChange={(event) => {
+                    setAccountNameEdited(true);
+                    setForm({ ...form, accountName: event.target.value });
+                  }}
+                  placeholder="ICBC ARS"
+                />
+              </div>
               {!prefill && (
-                <>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="groupName">Entidad</Label>
-                    <Input
-                      id="groupName"
-                      value={groupNameEdited ? form.groupName : effectiveAccountName}
-                      onChange={(event) => {
-                        setGroupNameEdited(true);
-                        setForm({ ...form, groupName: event.target.value });
-                      }}
-                      placeholder="ICBC, Mercado Pago..."
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="region">Región</Label>
-                    <select
-                      id="region"
-                      className={selectClass()}
-                      value={effectiveRegion}
-                      onChange={(event) => {
-                        setRegionEdited(true);
-                        setForm({ ...form, region: event.target.value as Region });
-                      }}
-                    >
-                      <option value="ARGENTINA">Argentina</option>
-                      <option value="AUSTRALIA">Australia</option>
-                      <option value="GLOBAL">Global</option>
-                    </select>
-                  </div>
-                </>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="region">Región</Label>
+                  <select
+                    id="region"
+                    className={selectClass()}
+                    value={effectiveRegion}
+                    onChange={(event) => {
+                      setRegionEdited(true);
+                      setForm({ ...form, region: event.target.value as Region });
+                    }}
+                  >
+                    <option value="ARGENTINA">Argentina</option>
+                    <option value="AUSTRALIA">Australia</option>
+                    <option value="GLOBAL">Global</option>
+                  </select>
+                </div>
               )}
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="openingBalance">Saldo actual</Label>
@@ -188,7 +192,7 @@ export function CreateAccountDialog({
             <Button type="button" variant="outline" className="min-h-11" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit" className="min-h-11" disabled={saving || !effectiveAccountName.trim()}>
+            <Button type="submit" className="min-h-11" disabled={saving || !canSave}>
               {saving ? "Guardando..." : "Guardar cuenta"}
             </Button>
           </DialogFooter>
