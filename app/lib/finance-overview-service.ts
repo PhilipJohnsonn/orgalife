@@ -1,5 +1,6 @@
 import { Decimal } from "@prisma/client/runtime/client";
 import { calculateCardProjection } from "@/app/lib/finance-card-projection";
+import { signedFlowAmount } from "@/app/lib/finance-month";
 import { convertUsdPivotAmount } from "@/app/lib/finance-rates";
 import {
   getCurrentUsdRates,
@@ -100,11 +101,14 @@ export async function getFinanceOverview(input: {
   const fallbackPeriod = defaultPeriod();
   const from = input.from ? parseCivilDate(input.from) : fallbackPeriod.from;
   const to = input.to ? parseCivilDate(input.to) : fallbackPeriod.to;
+  // Same basis as the monthly summary: every income/expense posting, whatever the
+  // operation (card purchases, shared expenses, yields), net of reversals.
   const flowEntries = await prisma.journalEntry.findMany({
     where: {
-      operationType: { in: ["INCOME", "EXPENSE"] },
       status: "POSTED",
+      operationType: { not: "REVERSAL" },
       occurredOn: { gte: from, lte: to },
+      postings: { some: { ledgerAccount: { kind: { in: ["INCOME", "EXPENSE"] } } } },
     },
     include: {
       postings: {
@@ -118,20 +122,17 @@ export async function getFinanceOverview(input: {
       (posting) => !posting.ledgerAccount.isSystem
     );
     if (
-      !userPosting ||
-      (input.region !== "GLOBAL" &&
-        userPosting.ledgerAccount.accountGroup?.region !== input.region)
+      input.region !== "GLOBAL" &&
+      userPosting?.ledgerAccount.accountGroup?.region !== input.region
     ) {
       continue;
     }
-    const currency = userPosting.ledgerAccount.currency.trim();
-    add(
-      flow,
-      currency,
-      userPosting.amount
-        .mul(entry.operationType === "INCOME" ? 1 : -1)
-        .toFixed(2)
-    );
+    for (const posting of entry.postings) {
+      const kind = posting.ledgerAccount.kind;
+      if (kind !== "INCOME" && kind !== "EXPENSE") continue;
+      const amount = signedFlowAmount(kind, posting.side, posting.amount.toFixed(2));
+      add(flow, posting.ledgerAccount.currency.trim(), (kind === "INCOME" ? amount : amount.negated()).toFixed(2));
+    }
   }
 
   const now = new Date();

@@ -145,6 +145,18 @@ test("paying the whole statement books the difference and leaves only later char
   ]);
   assert.ok(after.categories.some((category) => category.name === CATEGORY));
 
+  // Cierre's month flow counts card purchases and statement differences like Mes does.
+  const flow = async (from, to) =>
+    (await (await api(`/overview?region=GLOBAL&from=${from}&to=${to}`)).json()).native.flow;
+  assert.deepEqual(await flow("2033-03-01", "2033-03-31"), [
+    { currency: "ARS", amount: "-50000.00" },
+    { currency: "USD", amount: "-1075.00" },
+  ]);
+  assert.deepEqual(await flow("2033-04-01", "2033-04-30"), [
+    { currency: "ARS", amount: "1000.00" },
+    { currency: "USD", amount: "-10.50" },
+  ]);
+
   const movements = await (await api("/monthly-movements?month=2033-04")).json();
   const mine = movements.filter((movement) => movement.description.includes("Integration Visa P"));
   assert.deepEqual(
