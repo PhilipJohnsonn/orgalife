@@ -17,9 +17,7 @@ import { Region, postJson, selectClass, today } from "@/app/components/finance/c
 export type EntityPrefill = { groupName: string; groupType: string; region: Region };
 
 function inferRegion(currency: string): Region {
-  if (currency === "ARS") return "ARGENTINA";
-  if (currency === "AUD") return "AUSTRALIA";
-  return "GLOBAL";
+  return currency === "AUD" ? "AUSTRALIA" : "ARGENTINA";
 }
 
 function emptyForm(prefill: EntityPrefill | null, currencies: string[]) {
