@@ -1,7 +1,4 @@
-import type {
-  CategorizeStatementLineCommand,
-  CategoryRuleCommand,
-} from "@/app/lib/finance-v1-contracts";
+import type { CategoryRuleCommand } from "@/app/lib/finance-v1-contracts";
 import { prisma } from "@/app/lib/prisma";
 
 export class FinanceCategoryError extends Error {
@@ -101,67 +98,5 @@ export async function setCategoryRuleActive(ruleId: string, isActive: boolean) {
     where: { id: ruleId },
     data: { isActive },
     include: { category: true },
-  });
-}
-
-export async function categorizeStatementLine(
-  lineId: string,
-  command: CategorizeStatementLineCommand
-) {
-  return prisma.$transaction(async (transaction) => {
-    const [line, category] = await Promise.all([
-      transaction.ledgerCardStatementLine.findUnique({
-        where: { id: lineId },
-        include: {
-          statement: true,
-          postings: { include: { journalEntry: true, ledgerAccount: true } },
-        },
-      }),
-      transaction.category.findUnique({ where: { id: command.categoryId } }),
-    ]);
-    if (!line) {
-      throw new FinanceCategoryError("STATEMENT_LINE_NOT_FOUND", 404, "Statement line not found");
-    }
-    if (line.statement.status === "REVERSED") {
-      throw new FinanceCategoryError("STATEMENT_REVERSED", 409, "A reversed statement cannot be edited");
-    }
-    if (!category) {
-      throw new FinanceCategoryError("CATEGORY_NOT_FOUND", 404, "Category not found");
-    }
-    await transaction.ledgerCardStatementLine.update({
-      where: { id: line.id },
-      data: { categoryId: category.id },
-    });
-    const expensePostings = line.postings.filter(
-      (posting) => posting.ledgerAccount.kind === "EXPENSE"
-    );
-    for (const posting of expensePostings) {
-      await transaction.posting.update({
-        where: { id: posting.id },
-        data: { categoryId: category.id },
-      });
-      await transaction.journalEntryAudit.create({
-        data: {
-          journalEntryId: posting.journalEntryId,
-          field: "CATEGORY",
-          previousValue: line.categoryId,
-          newValue: category.id,
-        },
-      });
-    }
-    if (command.learnRule) {
-      const patternNormalized = normalizeMerchantPattern(line.description);
-      await transaction.categoryRule.upsert({
-        where: {
-          patternNormalized_categoryId: {
-            patternNormalized,
-            categoryId: category.id,
-          },
-        },
-        create: { patternNormalized, categoryId: category.id },
-        update: { isActive: true, lastUsedAt: new Date() },
-      });
-    }
-    return { lineId: line.id, category };
   });
 }

@@ -23,7 +23,6 @@ import { Label } from "@/components/ui/label";
 import { LedgerAccount, requestJson, selectClass, today } from "@/app/components/finance/cierre/shared";
 import { cn } from "@/lib/utils";
 import { computeCommitmentEndsOn } from "@/app/lib/finance-commitment-dates";
-import { PurchaseLine } from "./purchaseLines";
 
 type Commitment = {
   id: string;
@@ -32,10 +31,6 @@ type Commitment = {
   currency: string;
   frequency: "ONCE" | "WEEKLY" | "MONTHLY";
   status: "ACTIVE" | "CANCELLED";
-  observedAmount: string;
-  difference: string | null;
-  missingObservedCharge: boolean;
-  observedLineIds: string[];
 };
 
 type EndsMode = "never" | "date" | "afterN";
@@ -77,18 +72,11 @@ function formatCivilDateEs(civilDate: string) {
   });
 }
 
-export function CommitmentsSection({
-  accounts,
-  purchaseLines,
-}: {
-  accounts: LedgerAccount[];
-  purchaseLines: PurchaseLine[];
-}) {
+export function CommitmentsSection({ accounts }: { accounts: LedgerAccount[] }) {
   const [commitments, setCommitments] = useState<Commitment[]>([]);
   const [commitmentTotals, setCommitmentTotals] = useState<{ currency: string; once: string; weekly: string; monthly: string; monthlyAverage: string }[]>([]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [commitmentLines, setCommitmentLines] = useState<Record<string, string>>({});
 
   const [showForm, setShowForm] = useState(false);
   const [formError, setFormError] = useState("");
@@ -176,24 +164,6 @@ export function CommitmentsSection({
     }
   }
 
-  async function linkCommitment(commitment: Commitment) {
-    const statementLineId = commitmentLines[commitment.id];
-    if (!statementLineId) return;
-    setSaving(true);
-    try {
-      await requestJson("/api/finance/v1/commitments/observations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ commitmentId: commitment.id, statementLineId }),
-      });
-      await load();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo vincular el cargo");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   return (
     <Card>
       <CardHeader><CardTitle className="text-base">Suscripciones y compromisos informativos</CardTitle></CardHeader>
@@ -209,24 +179,14 @@ export function CommitmentsSection({
 
         <Button variant="outline" className="min-h-11" onClick={() => setShowForm(true)}>Agregar suscripción</Button>
 
-        {commitments.map((commitment) => {
-          const eligible = purchaseLines.filter(
-            (line) =>
-              line.statementStatus === "CONFIRMED" &&
-              line.billedCurrency === commitment.currency &&
-              !commitment.observedLineIds.includes(line.id)
-          );
-          return (
+        {commitments.map((commitment) => (
             <div key={commitment.id} className="rounded-md border p-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span>
                   <strong>{commitment.name}</strong> · {commitment.expectedAmount} {commitment.currency} · {FREQUENCY_LABELS[commitment.frequency]}
                 </span>
                 <div className="flex items-center gap-1">
-                  <span>
-                    {STATUS_LABELS[commitment.status]}
-                    {commitment.difference !== null ? ` · diferencia ${commitment.difference}` : " · sin cargo observado"}
-                  </span>
+                  <span>{STATUS_LABELS[commitment.status]}</span>
                   {commitment.status === "ACTIVE" && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -243,23 +203,8 @@ export function CommitmentsSection({
                   )}
                 </div>
               </div>
-              {commitment.status === "ACTIVE" && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <select
-                    aria-label={`Cargo observado para ${commitment.name}`}
-                    className={selectClass()}
-                    value={commitmentLines[commitment.id] ?? ""}
-                    onChange={(event) => setCommitmentLines({ ...commitmentLines, [commitment.id]: event.target.value })}
-                  >
-                    <option value="">Vincular un consumo real…</option>
-                    {eligible.map((line) => <option key={line.id} value={line.id}>{line.closingOn} · {line.description} · {line.billedAmount}</option>)}
-                  </select>
-                  <Button size="sm" variant="outline" onClick={() => linkCommitment(commitment)} disabled={saving || !commitmentLines[commitment.id]}>Vincular</Button>
-                </div>
-              )}
             </div>
-          );
-        })}
+        ))}
 
         <Dialog open={showForm} onOpenChange={(open) => (open ? setShowForm(true) : closeForm())}>
           <DialogContent className="sm:max-w-lg">

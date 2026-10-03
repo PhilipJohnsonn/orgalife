@@ -4,13 +4,11 @@ import test from "node:test";
 import {
   RequestValidationError,
   parseBaseCurrencyCommand,
-  parseCardPaymentCommand,
   parseCreateObligationCommand,
   parseCreateAccountCommand,
   parseFxCommand,
   parseIncomeExpenseCommand,
   parseManualRateCommand,
-  parseProvisionalCardPurchaseCommand,
   parseRecurringCommitmentCommand,
   parseSettleObligationCommand,
   parseTransferCommand,
@@ -128,51 +126,6 @@ test("rejects invalid transfer and FX contracts", () => {
   assert.throws(() => parseTransferCommand({ ...common, amount: "1.00" }), RequestValidationError);
   assert.throws(
     () => parseFxCommand({ ...common, destinationAccountId: "other", sourceAmount: "1.00", destinationAmount: "0" }),
-    RequestValidationError
-  );
-});
-
-test("validates card payments and provisional card purchases", () => {
-  assert.deepEqual(
-    parseCardPaymentCommand({
-      statementId: "statement-1",
-      sourceAccountId: "bank-ars",
-      amount: "105.00",
-      occurredOn: "2026-08-10",
-      idempotencyKey: valid.idempotencyKey,
-    }),
-    {
-      statementId: "statement-1",
-      sourceAccountId: "bank-ars",
-      amount: "105.00",
-      occurredOn: "2026-08-10",
-      idempotencyKey: valid.idempotencyKey,
-    }
-  );
-  assert.deepEqual(
-    parseProvisionalCardPurchaseCommand({
-      cardGroupId: "card-1",
-      currency: "AUD",
-      amount: "12.50",
-      occurredOn: "2026-08-10",
-      description: "Netflix",
-      idempotencyKey: valid.idempotencyKey,
-    }),
-    {
-      cardGroupId: "card-1",
-      currency: "AUD",
-      amount: "12.50",
-      occurredOn: "2026-08-10",
-      description: "Netflix",
-      idempotencyKey: valid.idempotencyKey,
-    }
-  );
-  assert.throws(
-    () => parseCardPaymentCommand({ statementId: "statement-1", amount: 10 }),
-    RequestValidationError
-  );
-  assert.throws(
-    () => parseProvisionalCardPurchaseCommand({ ...valid, currency: "ars" }),
     RequestValidationError
   );
 });

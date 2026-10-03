@@ -27,12 +27,12 @@ test("contains both non-financial and current financial tables", async () => {
   const result = await client.query(`
     SELECT
       to_regclass('"Board"')::text AS board,
-      to_regclass('"Transaction"')::text AS finance,
+      to_regclass('"JournalEntry"')::text AS finance,
       to_regclass('"Session"')::text AS session
   `);
 
   assert.equal(result.rows[0]?.board, '"Board"');
-  assert.equal(result.rows[0]?.finance, '"Transaction"');
+  assert.equal(result.rows[0]?.finance, '"JournalEntry"');
   assert.equal(result.rows[0]?.session, '"Session"');
 });
 
@@ -68,7 +68,7 @@ test("stores only a unique session token hash and supports revocation", async ()
   ]);
 });
 
-test("contains the additive ledger foundation without replacing legacy finance", async () => {
+test("contains the ledger foundation", async () => {
   const result = await client.query(`
     SELECT
       to_regclass('"AccountGroup"')::text AS account_group,
@@ -78,8 +78,7 @@ test("contains the additive ledger foundation without replacing legacy finance",
       to_regclass('"JournalEntryAudit"')::text AS audit,
       to_regclass('"ExchangeRateSnapshot"')::text AS exchange_rate,
       to_regclass('"JournalEntryExchangeRateReference"')::text AS exchange_rate_reference,
-      to_regclass('"FinanceConfiguration"')::text AS finance_configuration,
-      to_regclass('"Transaction"')::text AS legacy_transaction
+      to_regclass('"FinanceConfiguration"')::text AS finance_configuration
   `);
 
   assert.equal(result.rows[0]?.account_group, '"AccountGroup"');
@@ -93,7 +92,6 @@ test("contains the additive ledger foundation without replacing legacy finance",
     '"JournalEntryExchangeRateReference"'
   );
   assert.equal(result.rows[0]?.finance_configuration, '"FinanceConfiguration"');
-  assert.equal(result.rows[0]?.legacy_transaction, '"Transaction"');
 });
 
 test("stores FX rates with eight decimal places and civil application dates", async () => {
@@ -138,37 +136,25 @@ test("uses civil dates and fixed-scale decimal amounts", async () => {
   assert.equal(result.rows[0]?.amount_scale, 2);
 });
 
-test("contains persistent ICBC statement drafts with fixed-scale totals", async () => {
-  const tables = await client.query(`
-    SELECT
-      to_regclass('"LedgerCardStatement"')::text AS statement,
-      to_regclass('"LedgerCardStatementTotal"')::text AS total,
-      to_regclass('"LedgerCardStatementLine"')::text AS line,
-      to_regclass('"TaxExclusion"')::text AS tax_exclusion,
-      to_regclass('"CardReconciliation"')::text AS reconciliation,
-      to_regclass('"CardPaymentAllocation"')::text AS payment_allocation
-  `);
-
-  assert.equal(tables.rows[0]?.statement, '"LedgerCardStatement"');
-  assert.equal(tables.rows[0]?.total, '"LedgerCardStatementTotal"');
-  assert.equal(tables.rows[0]?.line, '"LedgerCardStatementLine"');
-  assert.equal(tables.rows[0]?.tax_exclusion, '"TaxExclusion"');
-  assert.equal(tables.rows[0]?.reconciliation, '"CardReconciliation"');
-  assert.equal(tables.rows[0]?.payment_allocation, '"CardPaymentAllocation"');
-
-  const columns = await client.query(`
-    SELECT
-      (SELECT data_type FROM information_schema.columns
-       WHERE table_name = 'LedgerCardStatement' AND column_name = 'closingOn') AS closing_on_type,
-      (SELECT numeric_precision FROM information_schema.columns
-       WHERE table_name = 'LedgerCardStatementTotal' AND column_name = 'reportedTotal') AS amount_precision,
-      (SELECT numeric_scale FROM information_schema.columns
-       WHERE table_name = 'LedgerCardStatementTotal' AND column_name = 'reportedTotal') AS amount_scale
-  `);
-
-  assert.equal(columns.rows[0]?.closing_on_type, "date");
-  assert.equal(columns.rows[0]?.amount_precision, 18);
-  assert.equal(columns.rows[0]?.amount_scale, 2);
+test("no longer contains card statements, reconciliation or legacy finance", async () => {
+  const removed = [
+    "LedgerCardStatement",
+    "LedgerCardStatementTotal",
+    "LedgerCardStatementLine",
+    "TaxExclusion",
+    "CardReconciliation",
+    "CardPaymentAllocation",
+    "RecurringCommitmentObservation",
+    "FinancialAccount",
+    "CardStatement",
+    "CardExpense",
+    "Debt",
+    "Transaction",
+  ];
+  for (const table of removed) {
+    const result = await client.query("SELECT to_regclass($1)::text AS name", [`"${table}"`]);
+    assert.equal(result.rows[0]?.name, null, table);
+  }
 });
 
 test("contains obligation, category-rule and commitment subledgers", async () => {
@@ -177,15 +163,13 @@ test("contains obligation, category-rule and commitment subledgers", async () =>
       to_regclass('"Obligation"')::text AS obligation,
       to_regclass('"ObligationSettlement"')::text AS settlement,
       to_regclass('"CategoryRule"')::text AS category_rule,
-      to_regclass('"RecurringCommitment"')::text AS commitment,
-      to_regclass('"RecurringCommitmentObservation"')::text AS observation
+      to_regclass('"RecurringCommitment"')::text AS commitment
   `);
 
   assert.equal(tables.rows[0]?.obligation, '"Obligation"');
   assert.equal(tables.rows[0]?.settlement, '"ObligationSettlement"');
   assert.equal(tables.rows[0]?.category_rule, '"CategoryRule"');
   assert.equal(tables.rows[0]?.commitment, '"RecurringCommitment"');
-  assert.equal(tables.rows[0]?.observation, '"RecurringCommitmentObservation"');
 
   const amounts = await client.query(`
     SELECT

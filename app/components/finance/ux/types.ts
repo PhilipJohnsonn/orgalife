@@ -30,7 +30,7 @@ export type MonthlySummary = {
 /** GET /api/finance/v1/monthly-movements?month=YYYY-MM */
 export type MonthMovement = {
   id: string;
-  status: "POSTED" | "PROVISIONAL";
+  status: "POSTED";
   occurredOn: string;
   description: string;
   kind: "INCOME" | "EXPENSE" | "TRANSFER" | "FX";

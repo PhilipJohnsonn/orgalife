@@ -1,7 +1,6 @@
 import { Decimal } from "@prisma/client/runtime/client";
 import {
   FinanceCategoryError,
-  categorizeStatementLine,
   normalizeMerchantPattern,
 } from "@/app/lib/finance-category-service";
 import {
@@ -20,7 +19,7 @@ export const DISPLAY_CURRENCIES = ["AUD", "USD"] as const;
 type DisplayCurrency = (typeof DISPLAY_CURRENCIES)[number];
 type DisplayAmounts = Record<DisplayCurrency, string>;
 
-const EXCLUDED_STATUSES = ["SUPERSEDED", "DISMISSED", "REVERSED"] as const;
+const EXCLUDED_STATUSES = ["REVERSED"] as const;
 
 export function parseMonth(month: string) {
   const range = monthRange(month);
@@ -307,13 +306,6 @@ export async function setEntryCategory(
   );
   if (flowPostings.length === 0) {
     throw new FinanceCategoryError("ENTRY_NOT_CATEGORIZABLE", 422, "Este movimiento no lleva categoría");
-  }
-
-  // Statement lines own their category; keep them in sync through the existing flow.
-  const statementLineId = flowPostings.find((posting) => posting.statementLineId)?.statementLineId;
-  if (statementLineId) {
-    await categorizeStatementLine(statementLineId, command);
-    return { entryId, category };
   }
 
   await prisma.$transaction(async (transaction) => {

@@ -16,58 +16,6 @@ export type LedgerAccount = {
   } | null;
 };
 
-export type CardStatement = {
-  id: string;
-  cardGroup: { id: string; name: string; region: string };
-  closingOn: string;
-  dueOn: string;
-  revision: number;
-  status: "DRAFT" | "CONFIRMED" | "REVERSED";
-  totals: {
-    currency: string;
-    reportedTotal: string;
-    eligibleExclusions: string;
-    payableTotal: string;
-    paidTotal: string;
-    pendingTotal: string;
-    residual: string;
-  }[];
-  lines: {
-    id: string;
-    purchaseOn: string | null;
-    description: string;
-    classification: string;
-    paymentTreatment: string;
-    billedCurrency: string;
-    billedAmount: string;
-    originalCurrency: string | null;
-    originalAmount: string | null;
-    category: { id: string; name: string } | null;
-  }[];
-};
-
-export type CardProvisional = {
-  id: string;
-  status: "PROVISIONAL" | "SUPERSEDED" | "DISMISSED";
-  occurredOn: string;
-  description: string;
-  amount: string;
-  currency: string;
-  cardGroup: { id: string; name: string } | null;
-};
-
-export type CardPaymentState = {
-  statementId: string;
-  currencies: { currency: string; payable: string; pending: string }[];
-  unassignedPayments: {
-    journalEntryId: string;
-    occurredOn: string;
-    currency: string;
-    available: string;
-    sourceAccount: { id: string; name: string } | null;
-  }[];
-};
-
 export type MovementAccount = {
   id: string;
   name: string;
@@ -99,30 +47,23 @@ export type Overview = {
   baseCurrency: string;
   consolidated: {
     liquid: ConsolidatedValue;
-    billedCardDebt: ConsolidatedValue;
-    unbilledCardDebt: ConsolidatedValue;
-    confirmedNet: ConsolidatedValue;
-    projectedNet: ConsolidatedValue;
-    afterBilled: ConsolidatedValue;
-    afterAll: ConsolidatedValue;
+    cardDebt: ConsolidatedValue;
+    net: ConsolidatedValue;
+    afterCardDebt: ConsolidatedValue;
     flow: ConsolidatedValue;
   };
   native: {
     liquid: NativeValue[];
-    billedCardDebt: NativeValue[];
-    unbilledCardDebt: NativeValue[];
-    afterBilled: NativeValue[];
-    afterAll: NativeValue[];
+    cardDebt: NativeValue[];
+    afterCardDebt: NativeValue[];
   };
   cardProjection: {
     byCurrency: {
       currency: string;
       available: string;
-      billedDebt: string;
-      unbilled: string;
-      billedShortfall: string;
-      afterBilled: string;
-      afterAll: string;
+      cardDebt: string;
+      shortfall: string;
+      afterCardDebt: string;
     }[];
     usdPurchase: {
       shortfallUsd: string;

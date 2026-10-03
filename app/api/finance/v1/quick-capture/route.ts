@@ -7,7 +7,7 @@ import {
   QuickCaptureError,
   recordQuickCapture,
 } from "@/app/lib/finance-quick-capture-service";
-import { CardProvisionalError } from "@/app/lib/ledger-card-provisional-service";
+import { CardPurchaseError } from "@/app/lib/ledger-card-purchase-service";
 import { LedgerInvariantError } from "@/app/lib/ledger";
 
 function errorResponse(error: unknown) {
@@ -17,7 +17,7 @@ function errorResponse(error: unknown) {
       { status: 400 }
     );
   }
-  if (error instanceof QuickCaptureError || error instanceof CardProvisionalError) {
+  if (error instanceof QuickCaptureError || error instanceof CardPurchaseError) {
     return NextResponse.json(
       { error: { code: error.code, message: error.message } },
       { status: error.status }

@@ -5,7 +5,7 @@ import {
 import { getCurrentUsdRates } from "@/app/lib/exchange-rate-service";
 import { convertUsdPivotAmount } from "@/app/lib/finance-rates";
 import type { QuickCaptureCommand } from "@/app/lib/finance-v1-contracts";
-import { recordCardPurchase } from "@/app/lib/ledger-card-provisional-service";
+import { recordCardPurchase } from "@/app/lib/ledger-card-purchase-service";
 import { listEnabledCurrencies } from "@/app/lib/finance-currency-service";
 import { recordIncomeExpense } from "@/app/lib/ledger-cash-flow-service";
 import { prisma } from "@/app/lib/prisma";

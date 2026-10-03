@@ -128,7 +128,7 @@ export async function removePerson(id: string) {
   return { result: "ARCHIVED" as const };
 }
 
-const HIDDEN_STATUSES = ["SUPERSEDED", "DISMISSED", "REVERSED"] as const;
+const HIDDEN_STATUSES = ["REVERSED"] as const;
 
 /**
  * Shared expenses and settlements, newest first, with what each one did to

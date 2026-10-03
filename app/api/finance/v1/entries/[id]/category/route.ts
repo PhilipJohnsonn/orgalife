@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   RequestValidationError,
-  parseCategorizeStatementLineCommand,
+  parseCategorizeEntryCommand,
 } from "@/app/lib/finance-v1-contracts";
 import { FinanceCategoryError } from "@/app/lib/finance-category-service";
 import { setEntryCategory } from "@/app/lib/finance-month-service";
@@ -12,7 +12,7 @@ export async function PATCH(
 ) {
   try {
     const body = await request.json().catch(() => null);
-    const command = parseCategorizeStatementLineCommand(body);
+    const command = parseCategorizeEntryCommand(body);
     return NextResponse.json(await setEntryCategory((await params).id, command));
   } catch (error) {
     if (error instanceof RequestValidationError) {

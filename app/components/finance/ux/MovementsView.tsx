@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -77,31 +76,28 @@ function MovementRow({ movement, onSelect }: { movement: MonthMovement; onSelect
             {formatMoney(movement.shared.myShare, movement.currency)}
           </p>
         )}
-        {(clickable || movement.status === "PROVISIONAL") && (
+        {clickable && (
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            {clickable && (
-              <span
-                className={cn(
-                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-                  movement.category
-                    ? "bg-muted text-foreground"
-                    : "bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200"
-                )}
-              >
-                {movement.category ? (
-                  <>
-                    <span
-                      className="size-1.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: movement.category.color }}
-                    />
-                    {movement.category.name}
-                  </>
-                ) : (
-                  "Sin categoría"
-                )}
-              </span>
-            )}
-            {movement.status === "PROVISIONAL" && <Badge variant="outline">Pendiente resumen</Badge>}
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                movement.category
+                  ? "bg-muted text-foreground"
+                  : "bg-amber-100 text-amber-900 dark:bg-amber-950/60 dark:text-amber-200"
+              )}
+            >
+              {movement.category ? (
+                <>
+                  <span
+                    className="size-1.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: movement.category.color }}
+                  />
+                  {movement.category.name}
+                </>
+              ) : (
+                "Sin categoría"
+              )}
+            </span>
           </div>
         )}
       </div>

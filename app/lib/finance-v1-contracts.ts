@@ -56,15 +56,7 @@ export type ManualRateCommand = {
 
 export type BaseCurrencyCommand = { baseCurrency: string };
 
-export type CardPaymentCommand = {
-  statementId: string;
-  sourceAccountId: string;
-  amount: string;
-  occurredOn: string;
-  idempotencyKey: string;
-};
-
-export type ProvisionalCardPurchaseCommand = {
+export type CardPurchaseCommand = {
   cardGroupId: string;
   currency: string;
   amount: string;
@@ -112,7 +104,7 @@ export type CategoryRuleCommand = {
   priority: number;
 };
 
-export type CategorizeStatementLineCommand = {
+export type CategorizeEntryCommand = {
   categoryId: string;
   learnRule: boolean;
 };
@@ -272,62 +264,6 @@ export function parseBaseCurrencyCommand(input: unknown): BaseCurrencyCommand {
     throw new RequestValidationError("baseCurrency must be an ISO 4217 code");
   }
   return { baseCurrency };
-}
-
-export function parseCardPaymentCommand(input: unknown): CardPaymentCommand {
-  if (!input || typeof input !== "object" || Array.isArray(input)) {
-    throw new RequestValidationError("Body must be an object");
-  }
-  const record = input as Record<string, unknown>;
-  const occurredOn = requiredString(record, "occurredOn");
-  if (!DATE_PATTERN.test(occurredOn)) {
-    throw new RequestValidationError("occurredOn must use YYYY-MM-DD");
-  }
-  const idempotencyKey = requiredString(record, "idempotencyKey");
-  if (!UUID_PATTERN.test(idempotencyKey)) {
-    throw new RequestValidationError("idempotencyKey must be a UUID");
-  }
-  return {
-    statementId: requiredString(record, "statementId"),
-    sourceAccountId: requiredString(record, "sourceAccountId"),
-    amount: positiveMoney(record, "amount"),
-    occurredOn,
-    idempotencyKey,
-  };
-}
-
-export function parseProvisionalCardPurchaseCommand(
-  input: unknown
-): ProvisionalCardPurchaseCommand {
-  if (!input || typeof input !== "object" || Array.isArray(input)) {
-    throw new RequestValidationError("Body must be an object");
-  }
-  const record = input as Record<string, unknown>;
-  const currency = requiredString(record, "currency");
-  if (!/^[A-Z]{3}$/.test(currency)) {
-    throw new RequestValidationError("currency must be an ISO 4217 code");
-  }
-  const occurredOn = requiredString(record, "occurredOn");
-  if (!DATE_PATTERN.test(occurredOn)) {
-    throw new RequestValidationError("occurredOn must use YYYY-MM-DD");
-  }
-  const idempotencyKey = requiredString(record, "idempotencyKey");
-  if (!UUID_PATTERN.test(idempotencyKey)) {
-    throw new RequestValidationError("idempotencyKey must be a UUID");
-  }
-  const categoryId = record.categoryId;
-  if (categoryId !== undefined && (typeof categoryId !== "string" || !categoryId.trim())) {
-    throw new RequestValidationError("categoryId must be a non-empty string");
-  }
-  return {
-    cardGroupId: requiredString(record, "cardGroupId"),
-    currency,
-    amount: positiveMoney(record, "amount"),
-    occurredOn,
-    description: requiredString(record, "description"),
-    ...(typeof categoryId === "string" ? { categoryId: categoryId.trim() } : {}),
-    idempotencyKey,
-  };
 }
 
 export function parseCreateAccountCommand(input: unknown): CreateAccountCommand {
@@ -500,7 +436,7 @@ export function parseCategoryRuleCommand(input: unknown): CategoryRuleCommand {
   };
 }
 
-export function parseCategorizeStatementLineCommand(input: unknown): CategorizeStatementLineCommand {
+export function parseCategorizeEntryCommand(input: unknown): CategorizeEntryCommand {
   if (!input || typeof input !== "object" || Array.isArray(input)) {
     throw new RequestValidationError("Body must be an object");
   }

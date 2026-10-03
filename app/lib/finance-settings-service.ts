@@ -38,11 +38,10 @@ export async function removeAccount(id: string) {
       await transaction.walletCardAlias.deleteMany({ where: { ledgerAccountId: id } });
       await transaction.ledgerAccount.delete({ where: { id } });
       if (account.accountGroupId) {
-        const [remaining, statements] = await Promise.all([
-          transaction.ledgerAccount.count({ where: { accountGroupId: account.accountGroupId } }),
-          transaction.ledgerCardStatement.count({ where: { cardGroupId: account.accountGroupId } }),
-        ]);
-        if (remaining === 0 && statements === 0) {
+        const remaining = await transaction.ledgerAccount.count({
+          where: { accountGroupId: account.accountGroupId },
+        });
+        if (remaining === 0) {
           await transaction.accountGroup.delete({ where: { id: account.accountGroupId } });
         }
       }
@@ -125,7 +124,7 @@ export async function deleteCategory(id: string) {
     where: { id },
     include: {
       _count: {
-        select: { postings: true, statementLines: true, recurringCommitments: true, transactions: true },
+        select: { postings: true, recurringCommitments: true },
       },
     },
   });

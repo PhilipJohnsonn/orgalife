@@ -77,74 +77,25 @@ export async function getFinanceOverview(input: {
   );
 
   const liquid = new Map<string, Decimal>();
-  const billedCardDebt = new Map<string, Decimal>();
-  const confirmedNet = new Map<string, Decimal>();
+  const cardDebt = new Map<string, Decimal>();
+  const net = new Map<string, Decimal>();
   for (const account of accounts) {
     if (account.kind === "ASSET") add(liquid, account.currency, account.balance);
     if (account.kind === "LIABILITY" && account.group?.type === "CARD") {
-      add(billedCardDebt, account.currency, account.balance);
+      add(cardDebt, account.currency, account.balance);
     }
     const sign = ["LIABILITY", "PAYABLE"].includes(account.kind) ? -1 : 1;
     add(
-      confirmedNet,
+      net,
       account.currency,
       new Decimal(account.balance).mul(sign).toFixed(2)
     );
   }
 
-  const provisionalEntries = await prisma.journalEntry.findMany({
-    where: {
-      operationType: "CARD_PURCHASE",
-      source: "MANUAL",
-      status: "PROVISIONAL",
-      postings: {
-        some: {
-          ledgerAccount: {
-            kind: "LIABILITY",
-            subtype: "CARD",
-            accountGroup:
-              input.region === "GLOBAL" ? undefined : { region: input.region },
-          },
-        },
-      },
-    },
-    include: {
-      postings: {
-        include: { ledgerAccount: { include: { accountGroup: true } } },
-      },
-    },
-  });
-  const unbilledCardDebt = new Map<string, Decimal>();
-  for (const entry of provisionalEntries) {
-    const cardPosting = entry.postings.find(
-      (posting) =>
-        posting.ledgerAccount.kind === "LIABILITY" &&
-        posting.ledgerAccount.subtype === "CARD" &&
-        (input.region === "GLOBAL" ||
-          posting.ledgerAccount.accountGroup?.region === input.region)
-    );
-    if (cardPosting) {
-      add(
-        unbilledCardDebt,
-        cardPosting.ledgerAccount.currency.trim(),
-        cardPosting.amount.toFixed(2)
-      );
-    }
-  }
-  const cardProjection = calculateCardProjection({
-    liquid,
-    billedDebt: billedCardDebt,
-    unbilled: unbilledCardDebt,
-    rates,
-  });
-  const projectedNet = new Map(confirmedNet);
-  const afterBilled = new Map<string, Decimal>();
-  const afterAll = new Map<string, Decimal>();
-  for (const item of cardProjection.byCurrency) {
-    add(projectedNet, item.currency, new Decimal(item.unbilled).negated().toFixed(2));
-    afterBilled.set(item.currency, new Decimal(item.afterBilled));
-    afterAll.set(item.currency, new Decimal(item.afterAll));
-  }
+  const cardProjection = calculateCardProjection({ liquid, cardDebt, rates });
+  const afterCardDebt = new Map(
+    cardProjection.byCurrency.map((item) => [item.currency, new Decimal(item.afterCardDebt)])
+  );
 
   const fallbackPeriod = defaultPeriod();
   const from = input.from ? parseCivilDate(input.from) : fallbackPeriod.from;
@@ -190,22 +141,16 @@ export async function getFinanceOverview(input: {
     accounts,
     native: {
       liquid: serialize(liquid),
-      billedCardDebt: serialize(billedCardDebt),
-      unbilledCardDebt: serialize(unbilledCardDebt),
-      confirmedNet: serialize(confirmedNet),
-      projectedNet: serialize(projectedNet),
-      afterBilled: serialize(afterBilled),
-      afterAll: serialize(afterAll),
+      cardDebt: serialize(cardDebt),
+      net: serialize(net),
+      afterCardDebt: serialize(afterCardDebt),
       flow: serialize(flow),
     },
     consolidated: {
       liquid: consolidate(liquid, baseCurrency, rates),
-      billedCardDebt: consolidate(billedCardDebt, baseCurrency, rates),
-      unbilledCardDebt: consolidate(unbilledCardDebt, baseCurrency, rates),
-      confirmedNet: consolidate(confirmedNet, baseCurrency, rates),
-      projectedNet: consolidate(projectedNet, baseCurrency, rates),
-      afterBilled: consolidate(afterBilled, baseCurrency, rates),
-      afterAll: consolidate(afterAll, baseCurrency, rates),
+      cardDebt: consolidate(cardDebt, baseCurrency, rates),
+      net: consolidate(net, baseCurrency, rates),
+      afterCardDebt: consolidate(afterCardDebt, baseCurrency, rates),
       flow: consolidate(flow, baseCurrency, rates),
     },
     cardProjection,

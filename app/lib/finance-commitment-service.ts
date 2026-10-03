@@ -18,19 +18,11 @@ export class FinanceCommitmentError extends Error {
 const commitmentInclude = {
   category: true,
   expectedAccount: { include: { accountGroup: true } },
-  observations: {
-    include: { statementLine: { include: { statement: true } } },
-  },
 } satisfies Prisma.RecurringCommitmentInclude;
 
 function serializeCommitment(
   commitment: Prisma.RecurringCommitmentGetPayload<{ include: typeof commitmentInclude }>
 ) {
-  const observed = commitment.observations.reduce(
-    (total, observation) => total.plus(observation.statementLine.billedAmount.abs()),
-    new Prisma.Decimal(0)
-  );
-  const expectedObserved = commitment.expectedAmount.mul(commitment.observations.length);
   return {
     id: commitment.id,
     name: commitment.name,
@@ -48,14 +40,6 @@ function serializeCommitment(
           groupName: commitment.expectedAccount.accountGroup?.name ?? null,
         }
       : null,
-    observedAmount: observed.toFixed(2),
-    difference: commitment.observations.length > 0
-      ? observed.minus(expectedObserved).toFixed(2)
-      : null,
-    missingObservedCharge: commitment.observations.length === 0,
-    observedLineIds: commitment.observations.map(
-      (observation) => observation.statementLineId
-    ),
   };
 }
 
@@ -114,45 +98,6 @@ export async function cancelRecurringCommitment(commitmentId: string) {
     data: { status: "CANCELLED", cancelledAt: new Date() },
     include: commitmentInclude,
   }).then(serializeCommitment);
-}
-
-export async function linkCommitmentObservation(input: {
-  commitmentId: string;
-  statementLineId: string;
-}) {
-  return prisma.$transaction(async (transaction) => {
-    const [commitment, line] = await Promise.all([
-      transaction.recurringCommitment.findUnique({ where: { id: input.commitmentId } }),
-      transaction.ledgerCardStatementLine.findUnique({
-        where: { id: input.statementLineId },
-        include: { statement: true },
-      }),
-    ]);
-    if (!commitment || commitment.status !== "ACTIVE") {
-      throw new FinanceCommitmentError("COMMITMENT_NOT_FOUND", 404, "Active commitment not found");
-    }
-    if (!line || line.statement.status !== "CONFIRMED") {
-      throw new FinanceCommitmentError("STATEMENT_LINE_NOT_FOUND", 404, "Confirmed statement line not found");
-    }
-    if (line.billedCurrency.trim() !== commitment.currency.trim()) {
-      throw new FinanceCommitmentError(
-        "COMMITMENT_CURRENCY_MISMATCH",
-        422,
-        "Commitment and charge must use the same currency"
-      );
-    }
-    await transaction.recurringCommitmentObservation.upsert({
-      where: { statementLineId: line.id },
-      create: { commitmentId: commitment.id, statementLineId: line.id },
-      update: { commitmentId: commitment.id },
-    });
-    return { commitmentId: commitment.id, statementLineId: line.id };
-  });
-}
-
-export async function unlinkCommitmentObservation(statementLineId: string) {
-  await prisma.recurringCommitmentObservation.deleteMany({ where: { statementLineId } });
-  return { statementLineId };
 }
 
 export async function listRecurringCommitments() {

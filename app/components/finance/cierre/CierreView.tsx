@@ -5,13 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CardStatementsSection } from "./CardStatementsSection";
 import { MovementsList } from "./MovementsList";
 import { ObligationsSection } from "./ObligationsSection";
 import { RegisterMovementSection } from "./RegisterMovementSection";
 import {
-  CardProvisional,
-  CardStatement,
   LedgerAccount,
   LedgerMovement,
   Overview,
@@ -26,8 +23,6 @@ import {
 export function CierreView() {
   const [accounts, setAccounts] = useState<LedgerAccount[]>([]);
   const [movements, setMovements] = useState<LedgerMovement[]>([]);
-  const [statements, setStatements] = useState<CardStatement[]>([]);
-  const [provisionals, setProvisionals] = useState<CardProvisional[]>([]);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [region, setRegion] = useState<Region>("GLOBAL");
   const [showRateForm, setShowRateForm] = useState(false);
@@ -40,21 +35,17 @@ export function CierreView() {
   });
 
   const load = useCallback(async () => {
-    const [accountsResponse, movementsResponse, overviewResponse, statementsResponse, provisionalsResponse] = await Promise.all([
+    const [accountsResponse, movementsResponse, overviewResponse] = await Promise.all([
       fetch("/api/finance/v1/accounts"),
       fetch("/api/finance/v1/movements"),
       fetch(`/api/finance/v1/overview?region=${region}`),
-      fetch("/api/finance/v1/card-statements"),
-      fetch("/api/finance/v1/card-provisionals"),
     ]);
-    if (!accountsResponse.ok || !movementsResponse.ok || !overviewResponse.ok || !statementsResponse.ok || !provisionalsResponse.ok) {
+    if (!accountsResponse.ok || !movementsResponse.ok || !overviewResponse.ok) {
       throw new Error("No se pudieron cargar las finanzas v1");
     }
     setAccounts(await accountsResponse.json());
     setMovements(await movementsResponse.json());
     setOverview(await overviewResponse.json());
-    setStatements(await statementsResponse.json());
-    setProvisionals(await provisionalsResponse.json());
   }, [region]);
 
   useEffect(() => {
@@ -153,12 +144,9 @@ export function CierreView() {
       {overview && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Dinero disponible</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.liquid)}</p><p className="text-xs text-muted-foreground">{nativeLabel(overview.native.liquid)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Deuda facturada</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.billedCardDebt)}</p><p className="text-xs text-muted-foreground">{nativeLabel(overview.native.billedCardDebt)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Consumos no facturados</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.unbilledCardDebt)}</p><p className="text-xs text-muted-foreground">{nativeLabel(overview.native.unbilledCardDebt)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Posición neta confirmada</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.confirmedNet)}</p><p className="text-xs text-muted-foreground">Sin proyectar consumos no facturados</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Posición neta proyectada</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.projectedNet)}</p><p className="text-xs text-muted-foreground">Descuenta consumos todavía no facturados</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Después de pagar lo facturado</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.afterBilled)}</p><p className="text-xs text-muted-foreground">{nativeLabel(overview.native.afterBilled)}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Después de pagar todo</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.afterAll)}</p><p className="text-xs text-muted-foreground">{nativeLabel(overview.native.afterAll)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Deuda de tarjeta</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.cardDebt)}</p><p className="text-xs text-muted-foreground">{nativeLabel(overview.native.cardDebt)}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Posición neta</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.net)}</p><p className="text-xs text-muted-foreground">Activos menos deudas</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Después de pagar la tarjeta</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.afterCardDebt)}</p><p className="text-xs text-muted-foreground">{nativeLabel(overview.native.afterCardDebt)}</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Flujo del mes</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.flow)}</p><p className="text-xs text-muted-foreground">Ingresos − gastos; no incluye transferencias ni FX</p></CardContent></Card>
         </div>
       )}
@@ -171,10 +159,8 @@ export function CierreView() {
               {overview.cardProjection.byCurrency.map((item) => (
                 <div key={item.currency} className="rounded-md border p-3 text-sm">
                   <p className="font-medium">{item.currency}</p>
-                  <p>Disponible {item.available} · deuda {item.billedDebt}</p>
-                  <p>No facturado {item.unbilled}</p>
-                  <p className={Number(item.afterBilled) < 0 ? "text-destructive" : ""}>Después de facturado {item.afterBilled}</p>
-                  <p className={Number(item.afterAll) < 0 ? "text-destructive" : ""}>Después de todo {item.afterAll}</p>
+                  <p>Disponible {item.available} · deuda {item.cardDebt}</p>
+                  <p className={Number(item.afterCardDebt) < 0 ? "text-destructive" : ""}>Después de pagar {item.afterCardDebt}</p>
                 </div>
               ))}
             </div>
@@ -186,17 +172,10 @@ export function CierreView() {
                   : " Cargá una cotización ARS para calcular cuánto necesitás comprar."}
               </p>
             )}
-            <p className="text-xs text-muted-foreground">Esta proyección no mueve dinero, no reserva fondos y no cambia el estado de ningún resumen.</p>
+            <p className="text-xs text-muted-foreground">Esta proyección no mueve dinero ni reserva fondos.</p>
           </CardContent>
         </Card>
       )}
-
-      <CardStatementsSection
-        accounts={accounts}
-        statements={statements}
-        provisionals={provisionals}
-        onChanged={load}
-      />
 
       <ObligationsSection accounts={accounts} onLedgerChanged={load} />
 

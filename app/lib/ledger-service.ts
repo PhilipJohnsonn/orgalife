@@ -23,7 +23,6 @@ type JournalOperationTypeValue =
 
 type JournalEntrySourceValue =
   | "MANUAL"
-  | "CARD_STATEMENT"
   | "SYSTEM"
   | "REVOLUT_API";
 
@@ -32,7 +31,6 @@ type StoredPostingDraft = {
   side: PostingSideValue;
   amount: string;
   categoryId?: string | null;
-  statementLineId?: string | null;
 };
 
 export type CreatePostedJournalEntryInput = {
@@ -83,7 +81,6 @@ function postingCreateData(posting: NormalizedPosting) {
     side: posting.side,
     amount: posting.amount,
     categoryId: posting.categoryId,
-    statementLineId: posting.statementLineId,
   };
 }
 
@@ -203,7 +200,6 @@ export async function reverseJournalEntryInTransaction(
       side: oppositePostingSide(posting.side),
       amount: posting.amount.toFixed(2),
       categoryId: posting.categoryId,
-      statementLineId: posting.statementLineId,
     }))
   );
 

@@ -171,7 +171,6 @@ test("reconstructs native balances and cancels reversed entries", () => {
     calculateNativeBalance("ASSET", [
       { side: "DEBIT", amount: "100.00", entryStatus: "POSTED" },
       { side: "CREDIT", amount: "20.00", entryStatus: "POSTED" },
-      { side: "DEBIT", amount: "50.00", entryStatus: "PROVISIONAL" },
     ]),
     "80.00"
   );

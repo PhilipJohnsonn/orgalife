@@ -20,8 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { requestJson, selectClass } from "@/app/components/finance/cierre/shared";
-import { PurchaseLine } from "./purchaseLines";
+import { requestJson } from "@/app/components/finance/cierre/shared";
 
 type Category = { id: string; name: string; color: string; createdAt: string };
 
@@ -41,18 +40,10 @@ function emptyForm() {
   return { name: "", color: DEFAULT_COLOR };
 }
 
-export function CategoriesSection({
-  purchaseLines,
-  onCategorized,
-}: {
-  purchaseLines: PurchaseLine[];
-  onCategorized: () => Promise<void>;
-}) {
+export function CategoriesSection() {
   const [categoryData, setCategoryData] = useState<CategoryData>({ categories: [], rules: [] });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [lineCategories, setLineCategories] = useState<Record<string, string>>({});
-  const [learnRules, setLearnRules] = useState<Record<string, boolean>>({});
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -150,24 +141,6 @@ export function CategoriesSection({
     }
   }
 
-  async function categorizeLine(line: PurchaseLine) {
-    const categoryId = lineCategories[line.id] ?? line.category?.id;
-    if (!categoryId) return;
-    setSaving(true);
-    try {
-      await requestJson(`/api/finance/v1/card-statements/lines/${line.id}/category`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ categoryId, learnRule: learnRules[line.id] ?? false }),
-      });
-      await Promise.all([load(), onCategorized()]);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No se pudo categorizar el consumo");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function deactivateRule(id: string) {
     setSaving(true);
     try {
@@ -222,24 +195,6 @@ export function CategoriesSection({
             <h3 className="text-sm font-medium">Reglas aprendidas</h3>
             <p className="text-xs text-muted-foreground">Cuando un comercio coincide, la categoría se asigna sola.</p>
           </div>
-          {purchaseLines.map((line) => (
-            <div key={line.id} className="grid gap-2 rounded-md border p-2 text-sm sm:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)_auto_auto] sm:items-center">
-              <span>{line.description} · {line.billedAmount} {line.billedCurrency}</span>
-              <select
-                aria-label={`Categoría de ${line.description}`}
-                className={selectClass()}
-                value={lineCategories[line.id] ?? line.category?.id ?? ""}
-                onChange={(event) => setLineCategories({ ...lineCategories, [line.id]: event.target.value })}
-              >
-                <option value="">Sin categoría</option>
-                {categoryData.categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-              </select>
-              <label className="flex items-center gap-1">
-                <input type="checkbox" checked={learnRules[line.id] ?? false} onChange={(event) => setLearnRules({ ...learnRules, [line.id]: event.target.checked })} /> Recordar
-              </label>
-              <Button size="sm" variant="outline" onClick={() => categorizeLine(line)} disabled={saving || !(lineCategories[line.id] ?? line.category?.id)}>Guardar</Button>
-            </div>
-          ))}
           {categoryData.rules.filter((rule) => rule.isActive).map((rule) => (
             <div key={rule.id} className="flex flex-wrap items-center justify-between gap-2 rounded bg-muted/50 p-2 text-sm">
               <span>{rule.patternNormalized} → {rule.category.name}</span>

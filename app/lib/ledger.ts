@@ -10,12 +10,7 @@ export type LedgerAccountKindValue =
   | "EXPENSE"
   | "EQUITY"
   | "CLEARING";
-export type EconomicEntryStatus =
-  | "POSTED"
-  | "PROVISIONAL"
-  | "SUPERSEDED"
-  | "DISMISSED"
-  | "REVERSED";
+export type EconomicEntryStatus = "POSTED" | "REVERSED";
 
 export type PostingDraft = {
   ledgerAccountId: string;
@@ -23,7 +18,6 @@ export type PostingDraft = {
   side: PostingSideValue;
   amount: string;
   categoryId?: string | null;
-  statementLineId?: string | null;
 };
 
 export type NormalizedPosting = Omit<PostingDraft, "amount"> & {
