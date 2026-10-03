@@ -101,6 +101,8 @@ after(async () => {
 
 test("debt at closing only counts charges up to the closing date", { skip }, async () => {
   assert.deepEqual(await debts("2033-03-25"), { ARS: "50000.00", USD: "1000.00" });
+  const firstTime = await (await api(`/card-payments?cardGroupId=${GROUP_ID}`)).json();
+  assert.equal(firstTime.closingOn, null, "no suggestion before the first full payment");
 });
 
 test("paying the whole statement books the difference and leaves only later charges", { skip }, async () => {
@@ -158,6 +160,12 @@ test("paying the whole statement books the difference and leaves only later char
 
 test("the next statement starts from what the previous payment left", { skip }, async () => {
   assert.deepEqual(await debts("2033-04-25"), { ARS: "0.00", USD: "75.00" });
+  const suggested = await (await api(`/card-payments?cardGroupId=${GROUP_ID}`)).json();
+  assert.equal(suggested.closingOn, "2033-04-25", "one month after the last recorded closing");
+  assert.deepEqual(suggested.currencies, [
+    { currency: "ARS", debtAtClosing: "0.00" },
+    { currency: "USD", debtAtClosing: "75.00" },
+  ]);
 });
 
 test("a partial payment without closing date books no difference", { skip }, async () => {

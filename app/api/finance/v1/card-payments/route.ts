@@ -3,16 +3,16 @@ import { CardPaymentError, parseCardPaymentCommand } from "@/app/lib/finance-car
 import { settingsErrorResponse } from "@/app/lib/finance-route-errors";
 import { getCardDebts, recordCardPayment } from "@/app/lib/ledger-card-payment-service";
 
-/** GET ?cardGroupId=…&closingOn=YYYY-MM-DD: debt per currency for that statement. */
+/** GET ?cardGroupId=…[&closingOn=YYYY-MM-DD]: debt per currency for that statement (or the suggested next one). */
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const cardGroupId = url.searchParams.get("cardGroupId")?.trim();
     const closingOn = url.searchParams.get("closingOn")?.trim();
-    if (!cardGroupId || !closingOn || !/^\d{4}-\d{2}-\d{2}$/.test(closingOn)) {
-      throw new CardPaymentError("INVALID_PAYLOAD", 400, "cardGroupId y closingOn (YYYY-MM-DD) son obligatorios");
+    if (!cardGroupId || (closingOn && !/^\d{4}-\d{2}-\d{2}$/.test(closingOn))) {
+      throw new CardPaymentError("INVALID_PAYLOAD", 400, "cardGroupId es obligatorio y closingOn usa YYYY-MM-DD");
     }
-    return NextResponse.json(await getCardDebts(cardGroupId, closingOn));
+    return NextResponse.json(await getCardDebts(cardGroupId, closingOn || undefined));
   } catch (error) {
     return settingsErrorResponse(error, "finance_v1_card_debts_failed");
   }

@@ -3,6 +3,7 @@ import {
   CARD_DIFFERENCE_CATEGORY_NAME,
   CardPaymentError,
   cardDebtAtClosing,
+  nextClosingOn,
   statementDifference,
   type CardLiabilityPosting,
   type CardPaymentCommand,
@@ -46,19 +47,43 @@ async function liabilityPostings(
   });
 }
 
-/** Debt per currency for the statement closed on `closingOn`, to preview a full payment. */
-export async function getCardDebts(cardGroupId: string, closingOn: string) {
-  parseCivilDate(closingOn);
+/** The latest closing date a full payment of this card was recorded against. */
+async function lastClosingOn(transaction: Prisma.TransactionClient, cardGroupId: string) {
+  const payments = await transaction.journalEntry.findMany({
+    where: {
+      operationType: "CARD_PAYMENT",
+      status: "POSTED",
+      metadata: { path: ["cardGroupId"], equals: cardGroupId },
+    },
+    select: { metadata: true },
+  });
+  return payments
+    .map((payment) => (payment.metadata as { closingOn?: string } | null)?.closingOn)
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .at(-1) ?? null;
+}
+
+/**
+ * Debt per currency for the statement closed on `closingOn`, to preview a full
+ * payment. Without a date it suggests the month after the last recorded closing.
+ */
+export async function getCardDebts(cardGroupId: string, closingOn?: string) {
+  if (closingOn) parseCivilDate(closingOn);
   return prisma.$transaction(async (transaction) => {
     const card = await loadCard(transaction, cardGroupId);
+    const last = closingOn ? null : await lastClosingOn(transaction, card.id);
+    const effectiveClosingOn = closingOn ?? (last ? nextClosingOn(last) : null);
     const currencies = [];
-    for (const account of card.accounts) {
-      currencies.push({
-        currency: account.currency.trim(),
-        debtAtClosing: cardDebtAtClosing(await liabilityPostings(transaction, account.id), closingOn),
-      });
+    if (effectiveClosingOn) {
+      for (const account of card.accounts) {
+        currencies.push({
+          currency: account.currency.trim(),
+          debtAtClosing: cardDebtAtClosing(await liabilityPostings(transaction, account.id), effectiveClosingOn),
+        });
+      }
     }
-    return { cardGroupId: card.id, name: card.name, closingOn, currencies };
+    return { cardGroupId: card.id, name: card.name, closingOn: effectiveClosingOn, currencies };
   });
 }
 

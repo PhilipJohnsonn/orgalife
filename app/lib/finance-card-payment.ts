@@ -95,3 +95,11 @@ export function cardDebtAtClosing(postings: CardLiabilityPosting[], closingOn: s
 export function statementDifference(paid: string, debt: string) {
   return new Decimal(paid).minus(debt).toFixed(2);
 }
+
+/** Suggests the next closing: one month after the last one, same day clamped to the month's end. */
+export function nextClosingOn(lastClosingOn: string) {
+  const [year, month, day] = lastClosingOn.split("-").map(Number);
+  const nextMonthIndex = month; // 0-based index of the following month
+  const lastDay = new Date(Date.UTC(year, nextMonthIndex + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(year, nextMonthIndex, Math.min(day, lastDay))).toISOString().slice(0, 10);
+}

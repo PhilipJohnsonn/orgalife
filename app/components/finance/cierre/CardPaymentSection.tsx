@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -108,6 +108,25 @@ function CardPaymentDialog({
     setFormError(null);
     setRows(Object.fromEntries(currencies.map((currency) => [currency, { amount: "", sourceAccountId: sourcesFor(currency)[0]?.id ?? "" }])));
   }
+
+  // Suggest the month after the last recorded closing, without overwriting what was typed meanwhile.
+  const cardId = card?.id;
+  useEffect(() => {
+    if (!cardId) return;
+    let cancelled = false;
+    fetch(`/api/finance/v1/card-payments?cardGroupId=${cardId}`, { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body: { closingOn: string | null; currencies: { currency: string; debtAtClosing: string }[] } | null) => {
+        if (cancelled || !body?.closingOn) return;
+        const suggested = Object.fromEntries(body.currencies.map((item) => [item.currency, item.debtAtClosing]));
+        setClosingOn((current) => current || body.closingOn!);
+        setDebts((current) => (Object.keys(current).length > 0 ? current : suggested));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [cardId]);
 
   async function loadDebts(nextClosingOn: string) {
     setDebts({});

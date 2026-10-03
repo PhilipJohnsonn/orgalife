@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   CardPaymentError,
   cardDebtAtClosing,
+  nextClosingOn,
   parseCardPaymentCommand,
   statementDifference,
 } from "./finance-card-payment.ts";
@@ -58,4 +59,10 @@ test("statement difference is what was paid minus what was recorded", () => {
   assert.equal(statementDifference("890.50", "880.00"), "10.50");
   assert.equal(statementDifference("875.00", "880.00"), "-5.00");
   assert.equal(statementDifference("880", "880.00"), "0.00");
+});
+
+test("suggests the next closing one month after the last one", () => {
+  assert.equal(nextClosingOn("2026-09-25"), "2026-10-25");
+  assert.equal(nextClosingOn("2026-01-31"), "2026-02-28");
+  assert.equal(nextClosingOn("2026-12-15"), "2027-01-15");
 });
