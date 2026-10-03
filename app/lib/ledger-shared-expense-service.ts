@@ -227,7 +227,8 @@ export async function splitExistingEntry(entryId: string, split: SplitInput) {
       !original ||
       original.source !== "MANUAL" ||
       !["EXPENSE", "CARD_PURCHASE"].includes(original.operationType) ||
-      original.status !== "POSTED"
+      original.status !== "POSTED" ||
+      Boolean((original.metadata as { cardStatementDifference?: boolean } | null)?.cardStatementDifference)
     ) {
       throw new SharedExpenseError("ENTRY_NOT_SPLITTABLE", "Sólo se puede dividir un gasto confirmado");
     }

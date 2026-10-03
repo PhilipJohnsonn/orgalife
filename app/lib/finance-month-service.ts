@@ -193,7 +193,7 @@ export async function listMonthMovements(month: string) {
     where: {
       occurredOn: { gte: from, lte: to },
       status: { notIn: [...EXCLUDED_STATUSES] },
-      operationType: { in: ["INCOME", "EXPENSE", "CARD_PURCHASE", "SHARED_EXPENSE", "TRANSFER", "FX"] },
+      operationType: { in: ["INCOME", "EXPENSE", "CARD_PURCHASE", "SHARED_EXPENSE", "TRANSFER", "FX", "CARD_PAYMENT"] },
     },
     include: {
       postings: {
@@ -243,9 +243,12 @@ export async function listMonthMovements(month: string) {
     }
     if (flowPosting) {
       const userPosting = userPostings[0];
+      const statementDifference = Boolean((entry.metadata as { cardStatementDifference?: boolean } | null)?.cardStatementDifference);
+      // A credited expense (the bank charged less than recorded) reads as money back.
+      const refund = flowPosting.ledgerAccount.kind === "EXPENSE" && flowPosting.side === "CREDIT";
       return {
         ...base,
-        kind: flowPosting.ledgerAccount.kind as "INCOME" | "EXPENSE",
+        kind: refund ? ("INCOME" as const) : (flowPosting.ledgerAccount.kind as "INCOME" | "EXPENSE"),
         amount: flowPosting.amount.toFixed(2),
         currency: flowPosting.ledgerAccount.currency.trim(),
         account: userPosting ? { id: userPosting.ledgerAccount.id, name: userPosting.ledgerAccount.name } : null,
@@ -257,7 +260,8 @@ export async function listMonthMovements(month: string) {
           ["EXPENSE", "CARD_PURCHASE"].includes(entry.operationType) &&
           entry.source === "MANUAL" &&
           entry.status === "POSTED" &&
-          entry.postings.length === 2,
+          entry.postings.length === 2 &&
+          !statementDifference,
         shared: null,
       };
     }
@@ -265,7 +269,8 @@ export async function listMonthMovements(month: string) {
     const destination = userPostings.find((posting) => posting.side === "DEBIT");
     return {
       ...base,
-      kind: entry.operationType as "TRANSFER" | "FX",
+      // A card payment moves money from an account to the card, like a transfer.
+      kind: entry.operationType === "FX" ? ("FX" as const) : ("TRANSFER" as const),
       amount: (source ?? destination)?.amount.toFixed(2) ?? "0.00",
       currency: (source ?? destination)?.ledgerAccount.currency.trim() ?? "",
       account: source ? { id: source.ledgerAccount.id, name: source.ledgerAccount.name } : null,

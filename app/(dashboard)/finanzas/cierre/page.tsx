@@ -6,7 +6,7 @@ export default function CierrePage() {
       <div>
         <h1 className="text-xl font-bold">Cierre de mes</h1>
         <p className="text-sm text-muted-foreground">
-          Cierre de mes: saldos, deuda de tarjeta, resúmenes y cotizaciones.
+          Cierre de mes: saldos, pago de tarjeta y cotizaciones.
         </p>
       </div>
       <CierreView />

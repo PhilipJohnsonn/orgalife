@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { CardPaymentError } from "@/app/lib/finance-card-payment";
 import { FinanceCategoryError } from "@/app/lib/finance-category-service";
 import { PersonError } from "@/app/lib/finance-people";
 import { SharedExpenseError } from "@/app/lib/shared-expense";
@@ -9,7 +10,12 @@ export function settingsErrorResponse(error: unknown, logKey: string) {
   if (error instanceof RequestValidationError || error instanceof LedgerInvariantError) {
     return NextResponse.json({ error: { code: error.code, message: error.message } }, { status: 400 });
   }
-  if (error instanceof FinanceCategoryError || error instanceof PersonError || error instanceof SharedExpenseError) {
+  if (
+    error instanceof FinanceCategoryError ||
+    error instanceof PersonError ||
+    error instanceof SharedExpenseError ||
+    error instanceof CardPaymentError
+  ) {
     return NextResponse.json({ error: { code: error.code, message: error.message } }, { status: error.status });
   }
   console.error(logKey, error instanceof Error ? error.name : "unknown");

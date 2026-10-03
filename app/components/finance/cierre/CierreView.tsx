@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CardPaymentSection } from "./CardPaymentSection";
 import { MovementsList } from "./MovementsList";
 import { ObligationsSection } from "./ObligationsSection";
 import { RegisterMovementSection } from "./RegisterMovementSection";
@@ -150,6 +151,8 @@ export function CierreView() {
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Flujo del mes</CardTitle></CardHeader><CardContent><p className="text-2xl font-semibold tabular-nums">{valueLabel(overview.consolidated.flow)}</p><p className="text-xs text-muted-foreground">Ingresos − gastos; no incluye transferencias ni FX</p></CardContent></Card>
         </div>
       )}
+
+      <CardPaymentSection accounts={accounts} onPaid={load} />
 
       {overview && overview.cardProjection.byCurrency.length > 0 && (
         <Card>
