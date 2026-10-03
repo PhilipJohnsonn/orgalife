@@ -1,16 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  COOKIE_NAME,
-  SESSION_TTL_SECONDS,
-  createOpaqueSessionToken,
-  hashSessionToken,
-  passwordMatches,
-} from "@/app/lib/auth";
+import { COOKIE_NAME, hashSessionToken, passwordMatches } from "@/app/lib/auth";
+import { startSession } from "@/app/lib/auth-session";
 import { prisma } from "@/app/lib/prisma";
-
-function sessionExpiry() {
-  return new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
-}
 
 export async function POST(request: NextRequest) {
   const configuredPassword = process.env.AUTH_PASSWORD;
@@ -33,42 +24,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid password" }, { status: 401 });
   }
 
-  const sessionToken = createOpaqueSessionToken();
-  const expiresAt = sessionExpiry();
-  const previousToken = request.cookies.get(COOKIE_NAME)?.value;
-  const userAgent = request.headers.get("user-agent")?.slice(0, 512) || null;
-
-  await prisma.$transaction(async (transaction) => {
-    if (previousToken) {
-      await transaction.session.updateMany({
-        where: {
-          tokenHash: hashSessionToken(previousToken),
-          revokedAt: null,
-        },
-        data: { revokedAt: new Date() },
-      });
-    }
-
-    await transaction.session.create({
-      data: {
-        tokenHash: hashSessionToken(sessionToken),
-        expiresAt,
-        userAgent,
-      },
-    });
-  });
-
-  const response = NextResponse.json({ ok: true });
-  response.cookies.set(COOKIE_NAME, sessionToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    expires: expiresAt,
-    maxAge: SESSION_TTL_SECONDS,
-  });
-
-  return response;
+  return startSession(request, NextResponse.json({ ok: true }));
 }
 
 export async function DELETE(request: NextRequest) {
